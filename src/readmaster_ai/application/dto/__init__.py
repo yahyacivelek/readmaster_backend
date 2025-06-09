@@ -1,5 +1,14 @@
-# This package will contain Data Transfer Objects (DTOs)
-# used for passing data between layers, especially between
-# the presentation layer (e.g., API request models) and
-# application layer use cases.
-pass
+"""
+Data Transfer Objects (DTOs) for Readmaster.ai.
+
+This package contains Pydantic models used for transferring data
+between layers of the application, particularly between the
+presentation layer (API request/response models) and the
+application layer (use case inputs/outputs).
+"""
+
+from .assessment_dto import CreateAssessmentDTO
+
+__all__ = [
+    "CreateAssessmentDTO",
+]

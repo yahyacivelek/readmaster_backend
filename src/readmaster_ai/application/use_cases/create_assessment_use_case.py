@@ -1,25 +1,36 @@
-from typing import Any # Placeholder for DTO and Repository types
-# from readmaster_ai.domain.entities.assessment import Assessment # Assuming this will exist
-# from readmaster_ai.domain.repositories.assessment_repository import AssessmentRepository # Assuming this will exist
-# from readmaster_ai.application.dto.assessment_dto import CreateAssessmentDTO # Assuming this will exist
+"""
+Use case for creating a new assessment.
+"""
+from readmaster_ai.domain.entities.assessment import Assessment
+from readmaster_ai.domain.repositories.assessment_repository import AssessmentRepository
+from readmaster_ai.application.dto.assessment_dto import CreateAssessmentDTO
 
 class CreateAssessmentUseCase:
-    def __init__(self, assessment_repo: Any): # Placeholder for AssessmentRepository
+    """
+    Orchestrates the creation of a new assessment.
+    It takes a DTO, creates an Assessment domain entity,
+    and uses the repository to persist it.
+    """
+    def __init__(self, assessment_repo: AssessmentRepository):
         self.assessment_repo = assessment_repo
 
-    async def execute(self, request_dto: Any) -> Any: # Placeholder for CreateAssessmentDTO and Assessment
+    async def execute(self, request_dto: CreateAssessmentDTO) -> Assessment:
+        """
+        Executes the assessment creation process.
+        Args:
+            request_dto: Data required to create the assessment.
+        Returns:
+            The created Assessment domain entity.
+        """
         # Business logic to create an assessment
-        # Example:
-        # new_assessment = Assessment(
-        #    student_id=request_dto.student_id,
-        #    reading_id=request_dto.reading_id,
-        #    # ... other fields ...
-        # )
-        # created_assessment = await self.assessment_repo.create(new_assessment)
-        # return created_assessment
-        print(f"Executing CreateAssessmentUseCase with DTO: {request_dto}")
-        print(f"Using repository: {self.assessment_repo}")
-        # This is a placeholder implementation
-        # In a real scenario, this would involve creating an Assessment entity,
-        # saving it via the repository, and returning the created entity or a DTO.
-        return {"message": "Assessment creation logic goes here", "dto": request_dto} # Placeholder return
+        new_assessment = Assessment(
+            student_id=request_dto.student_id,
+            reading_id=request_dto.reading_id,
+            assigned_by_teacher_id=request_dto.assigned_by_teacher_id
+            # The Assessment entity's __init__ handles default status, assessment_date, etc.
+        )
+
+        created_assessment = await self.assessment_repo.create(new_assessment)
+        # You might want to return a DTO here instead of the domain entity
+        # depending on your application's architectural choices.
+        return created_assessment
