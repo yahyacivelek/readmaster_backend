@@ -13,7 +13,16 @@ from readmaster_ai.domain.entities.assessment import AssessmentStatus # For upda
 from readmaster_ai.application.interfaces.ai_analysis_interface import AIAnalysisInterface
 from readmaster_ai.infrastructure.ai.ai_service_factory import AIServiceFactory
 from readmaster_ai.domain.entities.assessment_result import AssessmentResult as DomainAssessmentResult
-from readmaster_ai.domain.value_objects.common_enums import AssessmentStatus # Using centralized enum
+from readmaster_ai.domain.value_objects.common_enums import AssessmentStatus, NotificationType as NotificationTypeEnum # Using centralized enums
+
+from readmaster_ai.domain.repositories.notification_repository import NotificationRepository # New
+from readmaster_ai.infrastructure.database.repositories.notification_repository_impl import NotificationRepositoryImpl # New
+from readmaster_ai.domain.entities.notification import Notification as DomainNotification # New
+from readmaster_ai.domain.services.notification_service import NotificationService, WebSocketNotificationObserver # New
+from readmaster_ai.presentation.websockets.connection_manager import manager as global_connection_manager # New
+# from readmaster_ai.domain.repositories.reading_repository import ReadingRepository # For reading title (optional)
+# from readmaster_ai.infrastructure.database.repositories.reading_repository_impl import ReadingRepositoryImpl # For reading title
+
 
 # Renamed helper to reflect its full scope now
 async def _process_assessment_and_update_db_async(assessment_id_str: str):
@@ -24,9 +33,28 @@ async def _process_assessment_and_update_db_async(assessment_id_str: str):
     async with AsyncSessionLocal() as session:
         assessment_repo: AssessmentRepository = AssessmentRepositoryImpl(session)
         result_repo: AssessmentResultRepository = AssessmentResultRepositoryImpl(session)
-        ai_service: AIAnalysisInterface = AIServiceFactory.create_service() # Get AI service instance
+        notification_repo: NotificationRepository = NotificationRepositoryImpl(session) # New repo
+        ai_service: AIAnalysisInterface = AIServiceFactory.create_service()
+        # reading_repo: ReadingRepository = ReadingRepositoryImpl(session) # Uncomment if fetching reading title
 
-        assessment_id = UUID(assessment_id_str) # Convert string ID from Celery to UUID
+        # Initialize NotificationService and subscribe WebSocket observer for this task execution
+        # This assumes NotificationService can be instantiated per task, or a global one is managed carefully.
+        # For tasks running in separate processes, a new instance might be safer if it doesn't rely on shared in-memory state
+        # that isn't process-safe. The global_connection_manager for WebSockets is an exception as it's process-global (if Redis based) or needs careful handling.
+        # For this example, we instantiate it here.
+        notification_service = NotificationService()
+        # Ensure global_connection_manager is properly initialized and accessible here.
+        # If celery workers are separate processes, global_connection_manager (in-memory version) won't be shared from main app.
+        # If global_connection_manager uses Redis/external store, it's fine.
+        # Assuming global_connection_manager is process-safe or this task runs where it's accessible.
+        try:
+            ws_observer = WebSocketNotificationObserver(global_connection_manager)
+            notification_service.subscribe(ws_observer)
+        except Exception as e:
+            print(f"[CeleryTask] Warning: Could not subscribe WebSocketNotificationObserver: {e}")
+            # Continue without WebSocket notifications if subscription fails
+
+        assessment_id = UUID(assessment_id_str)
         assessment = await assessment_repo.get_by_id(assessment_id)
 
         if not assessment:
@@ -84,29 +112,72 @@ async def _process_assessment_and_update_db_async(assessment_id_str: str):
             assessment.updated_at = datetime.now(timezone.utc)
             await assessment_repo.update(assessment)
 
-            await session.commit() # Commit all changes (assessment status, result data)
-            print(f"[CeleryTask] Assessment {assessment_id_str} successfully processed. Status: COMPLETED. Result saved.")
+            # Create and dispatch notification
+            if assessment.status == AssessmentStatus.COMPLETED:
+                # reading = await reading_repo.get_by_id(assessment.reading_id) # Optional: for more detail in message
+                # reading_title = reading.title if reading else "your recent assessment"
+                notification_message = f"Your assessment results for reading ID {assessment.reading_id} are ready."
+
+                # 1. Create Notification in DB
+                new_db_notification = DomainNotification(
+                    notification_id=uuid4(),
+                    user_id=assessment.student_id,
+                    type=NotificationTypeEnum.RESULT,
+                    message=notification_message,
+                    related_entity_id=assessment.assessment_id
+                    # is_read defaults to False, created_at defaults to now in entity
+                )
+                await notification_repo.create(new_db_notification)
+
+                # 2. Prepare payload for real-time WebSocket notification
+                notification_payload_for_ws = {
+                    "notificationId": str(new_db_notification.notification_id),
+                    "message": new_db_notification.message,
+                    "relatedEntityId": str(new_db_notification.related_entity_id),
+                    "type": new_db_notification.type.value, # Send enum value
+                    "isRead": new_db_notification.is_read,
+                    "createdAt": new_db_notification.created_at.isoformat()
+                }
+                # Dispatch real-time notification via NotificationService
+                await notification_service.notify(
+                    user_id=assessment.student_id,
+                    event_type=NotificationTypeEnum.RESULT.value, # Use enum value as event type string
+                    data=notification_payload_for_ws
+                )
+
+            await session.commit()
+            print(f"[CeleryTask] Assessment {assessment_id_str} successfully processed. Status: COMPLETED. Result saved. Notification dispatched.")
 
         except Exception as e:
             print(f"[CeleryTask] Error during AI processing or DB update for assessment {assessment_id_str}: {e}")
-            # Rollback is handled by AsyncSessionLocal context manager if commit fails
-            # Ensure assessment status is marked as ERROR
-            if assessment: # Check if assessment was fetched before error
+            if assessment:
                 assessment.status = AssessmentStatus.ERROR
-                assessment.ai_raw_speech_to_text = f"Processing Error: {str(e)[:500]}" # Store error summary
+                assessment.ai_raw_speech_to_text = f"Processing Error: {str(e)[:500]}"
                 assessment.updated_at = datetime.now(timezone.utc)
+                # Try to update DB even if main transaction failed (e.g. AI service error)
                 try:
-                    # Need a new session for this final update if previous session failed and was rolled back
-                    async with AsyncSessionLocal() as error_session:
+                    # If session is compromised, a new session might be needed for this update
+                    # For now, assume session might still be usable or commit handles it.
+                    # If the session was rolled back by context manager, this update won't persist unless committed separately.
+                    # The current structure with one session means if commit fails, this error update might also fail.
+                    # A robust solution would use a separate session/transaction for the error update.
+                    async with AsyncSessionLocal() as error_session: # New session for error update
                         error_assessment_repo = AssessmentRepositoryImpl(error_session)
-                        await error_assessment_repo.update(assessment)
-                        await error_session.commit()
-                    print(f"[CeleryTask] Assessment {assessment_id_str} status updated to ERROR due to processing failure.")
+                        # Fetch fresh assessment to avoid detached instance issues if main session rolled back
+                        assessment_for_error_update = await error_assessment_repo.get_by_id(assessment_id)
+                        if assessment_for_error_update:
+                            assessment_for_error_update.status = AssessmentStatus.ERROR
+                            assessment_for_error_update.ai_raw_speech_to_text = f"Processing Error: {str(e)[:500]}"
+                            assessment_for_error_update.updated_at = datetime.now(timezone.utc)
+                            await error_assessment_repo.update(assessment_for_error_update)
+                            await error_session.commit()
+                            print(f"[CeleryTask] Assessment {assessment_id_str} status updated to ERROR due to processing failure.")
+                        else:
+                             print(f"[CeleryTask] CRITICAL: Assessment {assessment_id_str} not found during error update attempt.")
                 except Exception as db_error_on_error_update:
-                    # This is a critical situation: failed to process, and failed to mark as error.
                     print(f"[CeleryTask] CRITICAL: Failed to update assessment status to ERROR for {assessment_id_str} "
-                          f"after processing error. DB error: {db_error_on_error_update}")
-            raise # Re-raise the original processing exception to mark Celery task as FAILED
+                          f"after processing error. DB error on error update: {db_error_on_error_update}")
+            raise
 
 
 @celery_app.task(

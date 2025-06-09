@@ -19,9 +19,13 @@ __all__ = [
     "QuizQuestionRepository",
     "AssessmentResultRepository",
     "StudentQuizAnswerRepository",
-    "ClassRepository", # Added
+    "ClassRepository",
+    "NotificationRepository",
+    "SystemConfigurationRepository", # Added
 ]
 
 from .assessment_result_repository import AssessmentResultRepository
 from .student_quiz_answer_repository import StudentQuizAnswerRepository
-from .class_repository import ClassRepository # Added
+from .class_repository import ClassRepository
+from .notification_repository import NotificationRepository
+from .system_configuration_repository import SystemConfigurationRepository # Added

@@ -1,9 +1,9 @@
 import uuid
 import datetime
 from sqlalchemy import (
-    Column, String, Text, Enum as SQLAlchemyEnum, DateTime, ForeignKey, Integer, JSONB, Boolean, Float, Date, Table
+    Column, String, Text, Enum as SQLAlchemyEnum, DateTime, ForeignKey, Integer, Boolean, Float, Date, Table # Removed JSONB
 )
-from sqlalchemy.dialects.postgresql import UUID as PG_UUID
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID, JSONB # Added JSONB here
 from sqlalchemy.orm import relationship, declarative_base
 
 Base = declarative_base()
@@ -202,3 +202,15 @@ class NotificationModel(Base):
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
     user = relationship("UserModel", back_populates="notifications")
+
+
+class SystemConfigurationModel(Base):
+    __tablename__ = "SystemConfigurations"
+
+    key = Column(String, primary_key=True, index=True) # e.g., "DEFAULT_READING_LANGUAGE", "MAX_ASSESSMENTS_PER_DAY"
+    value = Column(JSONB, nullable=False) # Store various types of config values (string, number, bool, dict, list)
+    description = Column(Text, nullable=True)
+    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+
+    def __repr__(self):
+        return f"<SystemConfigurationModel(key='{self.key}', value='{self.value}')>"

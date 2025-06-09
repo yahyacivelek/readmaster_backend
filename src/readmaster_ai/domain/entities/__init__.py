@@ -28,4 +28,7 @@ __all__ = [
     "StudentQuizAnswer",
     "ProgressTracking",
     "Notification", "NotificationType",
+    "SystemConfiguration", # Added
 ]
+
+from .system_configuration import SystemConfiguration # Added

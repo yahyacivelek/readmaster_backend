@@ -1,5 +1,5 @@
 """
-API Router for Teacher-specific operations, including Class Management,
+API Router for Teacher-specific operations, primarily Class Management,
 Reading Assignments, and Progress Monitoring.
 All endpoints in this router require TEACHER role (or ADMIN where use cases permit).
 """
@@ -22,7 +22,7 @@ from readmaster_ai.application.dto.class_dtos import (
 )
 from readmaster_ai.application.dto.user_dtos import UserResponseDTO
 from readmaster_ai.application.dto.assessment_dtos import AssignReadingRequestDTO, AssignmentResponseDTO
-from readmaster_ai.application.dto.progress_dtos import StudentProgressSummaryDTO, ClassProgressReportDTO # Added
+from readmaster_ai.application.dto.progress_dtos import StudentProgressSummaryDTO, ClassProgressReportDTO
 from readmaster_ai.presentation.schemas.pagination import PaginatedResponse
 
 # Repositories (Abstract for DI to Use Cases)
@@ -30,14 +30,16 @@ from readmaster_ai.domain.repositories.class_repository import ClassRepository
 from readmaster_ai.domain.repositories.user_repository import UserRepository
 from readmaster_ai.domain.repositories.assessment_repository import AssessmentRepository
 from readmaster_ai.domain.repositories.reading_repository import ReadingRepository
-from readmaster_ai.domain.repositories.assessment_result_repository import AssessmentResultRepository # Added
+from readmaster_ai.domain.repositories.assessment_result_repository import AssessmentResultRepository
+from readmaster_ai.domain.repositories.notification_repository import NotificationRepository # New
 
 # Infrastructure (Concrete Repositories for DI)
 from readmaster_ai.infrastructure.database.repositories.class_repository_impl import ClassRepositoryImpl
 from readmaster_ai.infrastructure.database.repositories.user_repository_impl import UserRepositoryImpl
 from readmaster_ai.infrastructure.database.repositories.assessment_repository_impl import AssessmentRepositoryImpl
 from readmaster_ai.infrastructure.database.repositories.reading_repository_impl import ReadingRepositoryImpl
-from readmaster_ai.infrastructure.database.repositories.assessment_result_repository_impl import AssessmentResultRepositoryImpl # Added
+from readmaster_ai.infrastructure.database.repositories.assessment_result_repository_impl import AssessmentResultRepositoryImpl
+from readmaster_ai.infrastructure.database.repositories.notification_repository_impl import NotificationRepositoryImpl # New
 
 # Application (Use Cases)
 from readmaster_ai.application.use_cases.class_use_cases import (
@@ -46,7 +48,7 @@ from readmaster_ai.application.use_cases.class_use_cases import (
     RemoveStudentFromClassUseCase, ListStudentsInClassUseCase
 )
 from readmaster_ai.application.use_cases.assessment_use_cases import AssignReadingUseCase
-from readmaster_ai.application.use_cases.progress_use_cases import GetStudentProgressSummaryUseCase, GetClassProgressReportUseCase # Added
+from readmaster_ai.application.use_cases.progress_use_cases import GetStudentProgressSummaryUseCase, GetClassProgressReportUseCase
 
 # Shared (Exceptions)
 from readmaster_ai.shared.exceptions import NotFoundException, ApplicationException, ForbiddenException
@@ -63,6 +65,7 @@ def get_user_repo(session: AsyncSession = Depends(get_db)) -> UserRepository: re
 def get_assessment_repo(session: AsyncSession = Depends(get_db)) -> AssessmentRepository: return AssessmentRepositoryImpl(session)
 def get_reading_repo(session: AsyncSession = Depends(get_db)) -> ReadingRepository: return ReadingRepositoryImpl(session)
 def get_assessment_result_repo(session: AsyncSession = Depends(get_db)) -> AssessmentResultRepository: return AssessmentResultRepositoryImpl(session)
+def get_notification_repo(session: AsyncSession = Depends(get_db)) -> NotificationRepository: return NotificationRepositoryImpl(session) # New
 
 
 # --- Class Management Endpoints ---
@@ -116,7 +119,7 @@ async def teacher_add_student_to_class(class_id: UUID, dto: AddStudentToClassReq
     uc = AddStudentToClassUseCase(class_repo, user_repo)
     try:
         await uc.execute(class_id, dto.student_id, teacher)
-        get_uc = GetClassDetailsUseCase(class_repo) # Fetch updated class details
+        get_uc = GetClassDetailsUseCase(class_repo)
         class_obj = await get_uc.execute(class_id, teacher)
         student_dtos = [UserResponseDTO.model_validate(s) for s in class_obj.students if s]
         class_dto_resp = ClassResponseDTO.model_validate(class_obj)
@@ -131,13 +134,13 @@ async def teacher_remove_student_from_class(class_id: UUID, student_id: UUID, te
     uc = RemoveStudentFromClassUseCase(class_repo)
     try:
         if not await uc.execute(class_id, student_id, teacher): raise HTTPException(status.HTTP_404_NOT_FOUND, "Student not in class.")
-        get_uc = GetClassDetailsUseCase(class_repo) # Fetch updated class details
+        get_uc = GetClassDetailsUseCase(class_repo)
         class_obj = await get_uc.execute(class_id, teacher)
         student_dtos = [UserResponseDTO.model_validate(s) for s in class_obj.students if s]
         class_dto_resp = ClassResponseDTO.model_validate(class_obj)
         class_dto_resp.students = student_dtos
         return class_dto_resp
-    except NotFoundException as e: raise HTTPException(status.HTTP_404_NOT_FOUND, detail=str(e)) # Class not found
+    except NotFoundException as e: raise HTTPException(status.HTTP_404_NOT_FOUND, detail=str(e))
     except ForbiddenException as e: raise HTTPException(status.HTTP_403_FORBIDDEN, detail=str(e))
 
 @router.get("/classes/{class_id}/students", response_model=List[UserResponseDTO])
@@ -149,17 +152,29 @@ async def teacher_list_students_in_class(class_id: UUID, teacher: DomainUser = D
 
 # --- Reading Assignment Endpoint ---
 @router.post("/assignments/readings", response_model=AssignmentResponseDTO, status_code=status.HTTP_201_CREATED)
-async def teacher_assign_reading_to_students(request_data: AssignReadingRequestDTO, teacher: DomainUser = Depends(get_current_user),
-                                           assessment_repo: AssessmentRepository = Depends(get_assessment_repo), reading_repo: ReadingRepository = Depends(get_reading_repo),
-                                           class_repo: ClassRepository = Depends(get_class_repo), user_repo: UserRepository = Depends(get_user_repo)):
-    uc = AssignReadingUseCase(assessment_repo, reading_repo, class_repo, user_repo)
-    try: return await uc.execute(request_data, teacher)
-    except NotFoundException as e: raise HTTPException(status.HTTP_404_NOT_FOUND, detail=str(e))
-    except ForbiddenException as e: raise HTTPException(status.HTTP_403_FORBIDDEN, detail=str(e))
-    except ApplicationException as e: raise HTTPException(status_code=e.status_code if hasattr(e, 'status_code') else 400, detail=str(e))
+async def teacher_assign_reading_to_students(
+    request_data: AssignReadingRequestDTO,
+    teacher: DomainUser = Depends(get_current_user),
+    assessment_repo: AssessmentRepository = Depends(get_assessment_repo),
+    reading_repo: ReadingRepository = Depends(get_reading_repo),
+    class_repo: ClassRepository = Depends(get_class_repo),
+    user_repo: UserRepository = Depends(get_user_repo),
+    notification_repo: NotificationRepository = Depends(get_notification_repo) # Added
+):
+    use_case = AssignReadingUseCase(
+        assessment_repo, reading_repo, class_repo, user_repo, notification_repo # Pass it here
+    )
+    try:
+        return await use_case.execute(request_data, teacher)
+    except NotFoundException as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except ForbiddenException as e:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
+    except ApplicationException as e:
+        raise HTTPException(status_code=e.status_code if hasattr(e, 'status_code') else 400, detail=str(e))
     except Exception as e:
         print(f"Unexpected error assigning reading: {e}")
-        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An error occurred while assigning the reading.")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An error occurred while assigning the reading.")
 
 # --- Progress Monitoring Endpoints ---
 @router.get("/classes/{class_id}/progress-report", response_model=ClassProgressReportDTO)
@@ -176,7 +191,7 @@ async def teacher_get_class_progress_report(class_id: UUID, teacher: DomainUser 
     except ApplicationException as e: raise HTTPException(status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
         print(f"Unexpected error generating class progress report: {e}")
-        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An error occurred while generating the class progress report.")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An error occurred while generating the class progress report.")
 
 @router.get("/students/{student_id}/progress-summary", response_model=StudentProgressSummaryDTO)
 async def teacher_get_student_progress_summary(student_id: UUID, teacher: DomainUser = Depends(get_current_user),
@@ -189,4 +204,4 @@ async def teacher_get_student_progress_summary(student_id: UUID, teacher: Domain
     except ApplicationException as e: raise HTTPException(status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
         print(f"Unexpected error generating student progress summary: {e}")
-        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An error occurred while generating the student progress summary.")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An error occurred while generating the student progress summary.")

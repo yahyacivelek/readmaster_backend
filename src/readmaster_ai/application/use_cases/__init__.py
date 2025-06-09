@@ -26,43 +26,17 @@ from .quiz_question_use_cases import (
     UpdateQuizQuestionUseCase,
     DeleteQuizQuestionUseCase
 )
-# CreateAssessmentUseCase was here, but it's more specific, keeping it separate for now unless grouped later
 from .create_assessment_use_case import CreateAssessmentUseCase
-
-
-__all__ = [
-    "CreateUserUseCase",
-    "GetUserProfileUseCase",
-    "UpdateUserProfileUseCase",
-    "CreateAssessmentUseCase", # Keep it if it's considered a primary use case exposed here
-    "CreateReadingUseCase",
-    "GetReadingUseCase",
-    "ListReadingsUseCase",
-    "UpdateReadingUseCase",
-    "DeleteReadingUseCase",
-    "AddQuizQuestionToReadingUseCase",
-    "GetQuizQuestionUseCase",
-    "ListQuizQuestionsByReadingUseCase",
-    "UpdateQuizQuestionUseCase",
-    "DeleteQuizQuestionUseCase",
-    # Assessment Use Cases
-    "StartAssessmentUseCase",
-    "RequestAssessmentAudioUploadURLUseCase",
-    "ConfirmAudioUploadUseCase",
-    "SubmitQuizAnswersUseCase",
-    "GetAssessmentResultDetailsUseCase", # Added
-]
-
 from .assessment_use_cases import (
     StartAssessmentUseCase,
     RequestAssessmentAudioUploadURLUseCase,
     ConfirmAudioUploadUseCase,
     SubmitQuizAnswersUseCase,
     GetAssessmentResultDetailsUseCase,
-    AssignReadingUseCase # Added
+    AssignReadingUseCase
 )
 from .class_use_cases import (
-    CreateClassUseCase,
+    CreateClassUseCase, # Note: Also in user_use_cases for some reason in provided content, but should be distinct
     GetClassDetailsUseCase,
     ListClassesByTeacherUseCase,
     UpdateClassUseCase,
@@ -71,40 +45,53 @@ from .class_use_cases import (
     RemoveStudentFromClassUseCase,
     ListStudentsInClassUseCase
 )
-from .progress_use_cases import ( # Added
+from .progress_use_cases import (
     GetStudentProgressSummaryUseCase,
     GetClassProgressReportUseCase
 )
-from .parent_use_cases import ( # Added
+from .parent_use_cases import (
     ListParentChildrenUseCase,
     GetChildProgressForParentUseCase,
     GetChildAssessmentResultForParentUseCase
 )
+from .notification_use_cases import ( # Added
+    ListUserNotificationsUseCase,
+    MarkNotificationAsReadUseCase,
+    MarkAllNotificationsAsReadUseCase
+)
+from .system_config_use_cases import ( # Added
+    GetSystemConfigurationUseCase,
+    UpdateSystemConfigurationUseCase,
+    ListSystemConfigurationsUseCase
+)
 
 __all__ = [
-    # ... (existing user, assessment, reading, quiz question use cases) ...
+    # User Use Cases
     "CreateUserUseCase",
     "GetUserProfileUseCase",
     "UpdateUserProfileUseCase",
-    "CreateAssessmentUseCase",
+    # Reading Use Cases
     "CreateReadingUseCase",
     "GetReadingUseCase",
     "ListReadingsUseCase",
     "UpdateReadingUseCase",
     "DeleteReadingUseCase",
+    # QuizQuestion Use Cases
     "AddQuizQuestionToReadingUseCase",
     "GetQuizQuestionUseCase",
     "ListQuizQuestionsByReadingUseCase",
     "UpdateQuizQuestionUseCase",
     "DeleteQuizQuestionUseCase",
+    # Assessment Use Cases (including create_assessment_use_case.py)
+    "CreateAssessmentUseCase",
     "StartAssessmentUseCase",
     "RequestAssessmentAudioUploadURLUseCase",
     "ConfirmAudioUploadUseCase",
     "SubmitQuizAnswersUseCase",
     "GetAssessmentResultDetailsUseCase",
-    "AssignReadingUseCase", # Added
+    "AssignReadingUseCase",
     # Class Use Cases
-    "CreateClassUseCase",
+    # "CreateClassUseCase", # Already listed if it's the same one. Assuming class_use_cases.CreateClassUseCase is the one.
     "GetClassDetailsUseCase",
     "ListClassesByTeacherUseCase",
     "UpdateClassUseCase",
@@ -119,4 +106,12 @@ __all__ = [
     "ListParentChildrenUseCase",
     "GetChildProgressForParentUseCase",
     "GetChildAssessmentResultForParentUseCase",
+    # Notification Use Cases
+    "ListUserNotificationsUseCase",
+    "MarkNotificationAsReadUseCase",
+    "MarkAllNotificationsAsReadUseCase",
+    # System Configuration Use Cases
+    "GetSystemConfigurationUseCase",
+    "UpdateSystemConfigurationUseCase",
+    "ListSystemConfigurationsUseCase",
 ]

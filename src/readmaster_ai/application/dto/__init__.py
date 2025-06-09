@@ -56,6 +56,14 @@ __all__ = [
     "AssessmentAttemptSummaryDTO",
     "StudentProgressSummaryDTO",
     "ClassProgressReportDTO",
+    # Notification DTOs
+    "NotificationResponseDTO",
+    "MarkReadResponseDTO",
+    "MarkAllReadResponseDTO",
+    # System Config DTOs
+    "SystemConfigBaseDTO",
+    "SystemConfigResponseDTO",
+    "SystemConfigUpdateDTO",
 ]
 
 from .assessment_dtos import (
@@ -85,4 +93,14 @@ from .progress_dtos import ( # Added
     AssessmentAttemptSummaryDTO,
     StudentProgressSummaryDTO,
     ClassProgressReportDTO
+)
+from .notification_dtos import ( # Added
+    NotificationResponseDTO,
+    MarkReadResponseDTO,
+    MarkAllReadResponseDTO
+)
+from .system_config_dtos import ( # Added
+    SystemConfigBaseDTO,
+    SystemConfigResponseDTO,
+    SystemConfigUpdateDTO
 )
