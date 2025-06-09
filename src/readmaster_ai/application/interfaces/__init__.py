@@ -9,7 +9,9 @@ AI service providers, payment gateways, file storage solutions).
 """
 
 from .ai_analysis_interface import AIAnalysisInterface
+from .file_storage_interface import FileStorageInterface
 
 __all__ = [
     "AIAnalysisInterface",
+    "FileStorageInterface",
 ]

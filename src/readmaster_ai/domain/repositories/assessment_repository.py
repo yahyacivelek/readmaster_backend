@@ -25,8 +25,22 @@ class AssessmentRepository(ABC):
     # async def list_by_student_id(self, student_id: UUID) -> List[Assessment]:
     #     """Lists all assessments for a given student."""
     #     pass
-    #
-    # @abstractmethod
-    # async def update(self, assessment: Assessment) -> Assessment:
-    #     """Updates an existing assessment."""
-    #     pass
+
+    @abstractmethod
+    async def update(self, assessment: Assessment) -> Optional[Assessment]: # For updating status, audio_url etc.
+        """
+        Updates an existing assessment.
+        Returns the updated assessment or None if not found or update fails.
+        """
+        pass
+
+    @abstractmethod
+    async def list_by_student_ids(self, student_ids: List[UUID]) -> List['Assessment']:
+        """
+        Retrieves all assessments for a list of student IDs.
+        Args:
+            student_ids: A list of student UUIDs.
+        Returns:
+            A list of Assessment domain entities.
+        """
+        pass

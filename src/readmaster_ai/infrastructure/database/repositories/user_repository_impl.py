@@ -10,8 +10,10 @@ from readmaster_ai.domain.entities.user import User as DomainUser
 # UserRole is needed for converting between domain and model
 from readmaster_ai.domain.value_objects.common_enums import UserRole
 from readmaster_ai.domain.repositories.user_repository import UserRepository
-from readmaster_ai.infrastructure.database.models import UserModel # Corrected import
+from readmaster_ai.infrastructure.database.models import UserModel, ParentsStudentsAssociation # Import association table
 
+from sqlalchemy import update as sqlalchemy_update, func, and_ # Import func and_
+from readmaster_ai.shared.exceptions import ApplicationException, NotFoundException # For not found on update
 
 # Helper function for converting SQLAlchemy UserModel to DomainUser
 def _user_model_to_domain(model: UserModel) -> Optional[DomainUser]:
@@ -72,8 +74,110 @@ class UserRepositoryImpl(UserRepository):
         # Convert back to domain entity, now with any DB-generated values
         # (though _user_model_to_domain might need to handle if model.user_id was None initially and now set)
         created_domain_user = _user_model_to_domain(model)
-        if created_domain_user is None:
-            # This case should ideally not happen if model creation and refresh succeeded.
-            # Consider raising an exception or specific error handling.
-            raise ValueError("Failed to convert created UserModel back to DomainUser.")
+        if created_domain_user is None: # Should not happen if model is valid
+            raise ValueError("Failed to convert created UserModel back to DomainUser after creation.")
         return created_domain_user
+
+    async def update(self, user: DomainUser) -> DomainUser:
+        """Updates an existing user's details."""
+        if not user.user_id:
+            # This should ideally be caught earlier or prevented by type system if user_id is non-optional.
+            raise ValueError("User ID must be provided for an update operation.")
+
+        update_data = {
+            "first_name": user.first_name,
+            "last_name": user.last_name,
+            "preferred_language": user.preferred_language,
+            "email": user.email,
+            # Password hash is not updated here; should be a separate process.
+            # Role is also typically not updated via general profile update by user.
+            "updated_at": user.updated_at # The domain entity should have set this.
+        }
+        # Example: Filter out None values if you want to do partial updates
+        # and your DB columns are nullable or have defaults you don't want to override with None.
+        # update_data = {k: v for k, v in update_data.items() if v is not None}
+
+        stmt = (
+            sqlalchemy_update(UserModel)
+            .where(UserModel.user_id == user.user_id)
+            .values(**update_data)
+            .returning(UserModel)  # PostgreSQL specific: returns the updated row(s)
+        )
+
+        result = await self.session.execute(stmt)
+        updated_model = result.scalar_one_or_none()
+
+        if updated_model is None:
+            # This means the user_id provided did not match any existing user.
+            raise ApplicationException(f"User with ID {user.user_id} not found for update.", status_code=404)
+
+        # Flushed to ensure any DB-side validation or triggers run, though .returning() often suffices.
+        await self.session.flush()
+        # No need to refresh typically if .returning() gets all columns we need.
+        # await self.session.refresh(updated_model)
+
+        domain_user = _user_model_to_domain(updated_model)
+        if domain_user is None: # Should not happen if model is valid
+             raise ValueError("Failed to convert updated UserModel back to DomainUser.")
+        return domain_user
+
+    async def link_parent_to_student(self, parent_id: UUID, student_id: UUID, relationship_type: str) -> bool:
+        """Links a parent to a student after validating their roles and existence."""
+        # 1. Validate parent user
+        parent_user_model = await self.session.get(UserModel, parent_id)
+        if not parent_user_model or UserRole(parent_user_model.role) != UserRole.PARENT:
+            raise NotFoundException(resource_name="Parent user", resource_id=str(parent_id))
+
+        # 2. Validate student user
+        student_user_model = await self.session.get(UserModel, student_id)
+        if not student_user_model or UserRole(student_user_model.role) != UserRole.STUDENT:
+            raise NotFoundException(resource_name="Student user", resource_id=str(student_id))
+
+        # 3. Check if the association already exists
+        assoc_exists_stmt = select(ParentsStudentsAssociation).where(
+            and_(ParentsStudentsAssociation.c.parent_id == parent_id,
+                 ParentsStudentsAssociation.c.student_id == student_id)
+        )
+        existing_assoc_result = await self.session.execute(assoc_exists_stmt)
+        if existing_assoc_result.scalar_one_or_none() is not None:
+            # Link already exists. Optionally update relationship_type or consider it a success.
+            # For now, idempotent success.
+            # You could add logic here to update relationship_type if it differs.
+            return True
+
+        # 4. Create the association
+        stmt = ParentsStudentsAssociation.insert().values(
+            parent_id=parent_id,
+            student_id=student_id,
+            relationship_type=relationship_type
+            # linked_at has a default in the DB model
+        )
+        await self.session.execute(stmt)
+        await self.session.flush() # Persist the change
+        return True
+
+    async def list_children_by_parent_id(self, parent_id: UUID) -> List[DomainUser]:
+        """Lists all student users linked to a specific parent ID."""
+        stmt = (
+            select(UserModel)
+            .join(ParentsStudentsAssociation, UserModel.user_id == ParentsStudentsAssociation.c.student_id)
+            .where(ParentsStudentsAssociation.c.parent_id == parent_id)
+            .where(UserModel.role == UserRole.STUDENT.value) # Ensure only students are returned
+            .order_by(UserModel.last_name, UserModel.first_name) # Optional: order children
+        )
+        result = await self.session.execute(stmt)
+        student_models = result.scalars().all()
+
+        domain_students = [_user_model_to_domain(s_model) for s_model in student_models if _user_model_to_domain(s_model) is not None]
+        return domain_students
+
+    async def is_parent_of_student(self, parent_id: UUID, student_id: UUID) -> bool:
+        """Checks if a specific parent-student link exists."""
+        stmt = (
+            select(func.count(ParentsStudentsAssociation.c.parent_id).label("link_count")) # Use label for clarity
+            .where(ParentsStudentsAssociation.c.parent_id == parent_id)
+            .where(ParentsStudentsAssociation.c.student_id == student_id)
+        )
+        result = await self.session.execute(stmt)
+        count = result.scalar_one_or_none() # scalar_one_or_none in case the query itself could return no row (it won't with count)
+        return (count or 0) > 0

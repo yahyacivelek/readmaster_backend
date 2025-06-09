@@ -1,14 +1,20 @@
-# This package will contain implementations for file storage services,
-# e.g., interacting with GCS, S3, or local file system for development.
+"""
+Infrastructure package for File Storage services.
 
-# from abc import ABC, abstractmethod
+This package contains concrete implementations of the FileStorageInterface
+defined in the application layer. These implementations interact with
+specific file storage backends like local disk (for development/testing),
+Google Cloud Storage, AWS S3, etc.
 
-# class FileStorageInterface(ABC):
-#     @abstractmethod
-#     async def upload_file(self, file_path: str, destination_blob_name: str) -> str:
-#         pass # Returns public URL or identifier
+The choice of which implementation to use can be determined by
+configuration settings.
+"""
 
-#     @abstractmethod
-#     async def get_presigned_url(self, blob_name: str, method: str = "PUT") -> str:
-#         pass
-pass
+# Export concrete implementations if needed for direct instantiation elsewhere,
+# though typically they are resolved via a factory or DI based on configuration.
+from .local_storage import LocalFileStorageService
+
+__all__ = [
+    "LocalFileStorageService",
+    # Add other storage service implementations here (e.g., "GCSFileStorageService")
+]
