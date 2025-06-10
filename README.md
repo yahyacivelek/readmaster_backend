@@ -75,9 +75,9 @@ This project uses Docker and Docker Compose to simplify local development and en
     docker-compose logs
     ```
 
-*   **View logs for a specific service (e.g., `backend`):**
+*   **View logs for a specific service (e.g., `api`):**
     ```bash
-    docker-compose logs backend
+    docker-compose logs api
     ```
 
 *   **Follow logs in real-time:**
@@ -86,7 +86,7 @@ This project uses Docker and Docker Compose to simplify local development and en
     ```
     or for a specific service:
     ```bash
-    docker-compose logs -f backend
+    docker-compose logs -f api
     ```
 
 *   **Rebuild images and restart services:**
@@ -96,9 +96,9 @@ This project uses Docker and Docker Compose to simplify local development and en
 
 *   **Execute a command inside a running container (e.g., run Alembic migrations):**
     ```bash
-    docker-compose exec backend alembic upgrade head
+    docker-compose exec api alembic upgrade head
     ```
-    (Assuming your backend service is named `backend` in `docker-compose.yml`)
+    (Note: The service running the FastAPI application is named `api` in `docker-compose.yml`)
 
 ## Database Migrations
 
@@ -131,7 +131,7 @@ When you make changes to your SQLAlchemy models (e.g., in `src/infrastructure/da
 2.  **Generate the migration script:**
     *   **If using Docker Compose:**
         ```bash
-        docker-compose exec backend alembic revision -m "your_migration_message_here"
+        docker-compose exec api alembic revision -m "your_migration_message_here"
         ```
         Replace `"your_migration_message_here"` with a short, descriptive message about the changes (e.g., "add_user_email_column").
 
