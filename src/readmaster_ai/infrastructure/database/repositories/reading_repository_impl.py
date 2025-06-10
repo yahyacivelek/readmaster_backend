@@ -67,6 +67,7 @@ class ReadingRepositoryImpl(ReadingRepository):
         )
         self.session.add(model)
         await self.session.flush()
+        await self.session.commit()  # Add commit to persist changes
         await self.session.refresh(model)
 
         domain_entity = _reading_model_to_domain(model)
@@ -165,6 +166,7 @@ class ReadingRepositoryImpl(ReadingRepository):
         """Deletes a reading material by its ID."""
         stmt = sqlalchemy_delete(ReadingModel).where(ReadingModel.reading_id == reading_id)
         result = await self.session.execute(stmt)
+        await self.session.commit()
         # await self.session.flush() # Not strictly necessary for delete with autocommit, but good for consistency
                                   # if other operations require flush before checking rowcount.
                                   # However, rowcount is available directly from result.

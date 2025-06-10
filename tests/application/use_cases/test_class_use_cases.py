@@ -5,18 +5,18 @@ from unittest.mock import AsyncMock, MagicMock, ANY
 from uuid import uuid4, UUID
 from datetime import datetime, timezone
 
-from src.readmaster_ai.application.use_cases.class_use_cases import (
+from readmaster_ai.application.use_cases.class_use_cases import (
     CreateClassUseCase, GetClassDetailsUseCase, ListClassesByTeacherUseCase,
     UpdateClassUseCase, DeleteClassUseCase, AddStudentToClassUseCase, RemoveStudentFromClassUseCase,
     ListStudentsInClassUseCase
 )
-from src.readmaster_ai.domain.entities.class_entity import ClassEntity as DomainClassEntity
-from src.readmaster_ai.domain.entities.user import User as DomainUser
-from src.readmaster_ai.domain.value_objects.common_enums import UserRole
-from src.readmaster_ai.domain.repositories.class_repository import ClassRepository
-from src.readmaster_ai.domain.repositories.user_repository import UserRepository
-from src.readmaster_ai.application.dto.class_dtos import ClassCreateDTO, ClassUpdateDTO, AddStudentToClassRequestDTO
-from src.readmaster_ai.shared.exceptions import NotFoundException, ForbiddenException, ApplicationException
+from readmaster_ai.domain.entities.class_entity import ClassEntity as DomainClassEntity
+from readmaster_ai.domain.entities.user import DomainUser
+from readmaster_ai.domain.value_objects.common_enums import UserRole
+from readmaster_ai.domain.repositories.class_repository import ClassRepository
+from readmaster_ai.domain.repositories.user_repository import UserRepository
+from readmaster_ai.application.dto.class_dtos import ClassCreateDTO, ClassUpdateDTO, AddStudentToClassRequestDTO
+from readmaster_ai.shared.exceptions import NotFoundException, ForbiddenException, ApplicationException
 
 @pytest.fixture
 def mock_class_repo() -> MagicMock:
@@ -152,7 +152,14 @@ async def test_update_class_success(mock_class_repo: MagicMock, sample_class_dom
     mock_class_repo.get_by_id.return_value = sample_class_domain
     use_case = UpdateClassUseCase(class_repo=mock_class_repo)
     update_dto = ClassUpdateDTO(class_name="Updated Class Name", grade_level="11")
-    class_to_update = DomainClassEntity(**sample_class_domain.model_dump(exclude={"updated_at"}))
+    class_to_update = DomainClassEntity(
+        class_id=sample_class_domain.class_id,
+        class_name=sample_class_domain.class_name,
+        grade_level=sample_class_domain.grade_level,
+        created_by_teacher_id=sample_class_domain.created_by_teacher_id,
+        created_at=sample_class_domain.created_at,
+        updated_at=sample_class_domain.updated_at
+    )
     class_to_update.updated_at = sample_class_domain.updated_at
     original_updated_at = class_to_update.updated_at
     updated_class = await use_case.execute(class_to_update.class_id, update_dto, sample_teacher_user)

@@ -1,12 +1,12 @@
 from __future__ import annotations
 from typing import List, TYPE_CHECKING, Optional
-from .user import User, UserRole
+from .user import DomainUser, UserRole
 
 if TYPE_CHECKING:
     from .student import Student
     from .progress_tracking import ProgressTracking # Added for return type hint clarity
 
-class Parent(User):
+class Parent(DomainUser):
     # children: List[Student] # Managed by repository
 
     def __init__(self, *args, **kwargs):

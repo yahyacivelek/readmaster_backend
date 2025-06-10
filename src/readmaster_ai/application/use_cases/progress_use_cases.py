@@ -5,7 +5,7 @@ from typing import List, Optional, Dict, Any, Tuple
 from uuid import UUID
 
 # Domain Entities and Repositories
-from readmaster_ai.domain.entities.user import User as DomainUser
+from readmaster_ai.domain.entities.user import DomainUser
 from readmaster_ai.domain.value_objects.common_enums import UserRole, AssessmentStatus # Enums
 from readmaster_ai.domain.repositories.user_repository import UserRepository
 from readmaster_ai.domain.repositories.class_repository import ClassRepository

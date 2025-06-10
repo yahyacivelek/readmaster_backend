@@ -2,7 +2,7 @@
 Abstract repository interface for AssessmentResult entities.
 """
 from abc import ABC, abstractmethod
-from typing import Optional
+from typing import Optional, List
 from uuid import UUID
 
 # Forward declaration for AssessmentResult entity

@@ -3,17 +3,17 @@ import pytest
 import pytest_asyncio
 from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4, UUID
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
-from src.readmaster_ai.application.use_cases.notification_use_cases import (
+from readmaster_ai.application.use_cases.notification_use_cases import (
     ListUserNotificationsUseCase, MarkNotificationAsReadUseCase, MarkAllNotificationsAsReadUseCase
 )
-from src.readmaster_ai.domain.entities.notification import Notification as DomainNotification
-from src.readmaster_ai.domain.value_objects.common_enums import NotificationType as NotificationTypeEnum # Enum for type
-from src.readmaster_ai.domain.entities.user import User as DomainUser
-from src.readmaster_ai.domain.value_objects.common_enums import UserRole # Enum for user role
-from src.readmaster_ai.domain.repositories.notification_repository import NotificationRepository
-from src.readmaster_ai.shared.exceptions import NotFoundException, ForbiddenException
+from readmaster_ai.domain.entities.notification import Notification as DomainNotification
+from readmaster_ai.domain.value_objects.common_enums import NotificationType as NotificationTypeEnum # Enum for type
+from readmaster_ai.domain.entities.user import DomainUser
+from readmaster_ai.domain.value_objects.common_enums import UserRole # Enum for user role
+from readmaster_ai.domain.repositories.notification_repository import NotificationRepository
+from readmaster_ai.shared.exceptions import NotFoundException, ForbiddenException
 
 
 @pytest.fixture
@@ -58,7 +58,7 @@ def sample_read_notification(sample_user_for_notifications: DomainUser) -> Domai
         type=NotificationTypeEnum.FEEDBACK,
         message="Feedback received.",
         is_read=True, # Already read
-        created_at=datetime.now(timezone.utc) - timezone.timedelta(days=1) # Older
+        created_at=datetime.now(timezone.utc) - timedelta(days=1) # Older
     )
 
 # === ListUserNotificationsUseCase Tests ===
@@ -96,15 +96,22 @@ async def test_mark_notification_as_read_success(mock_notification_repo: MagicMo
     sample_notification.is_read = False
     # Simulate that the repository's mark_as_read returns the updated notification
     # In a real scenario, the mock would change sample_notification.is_read to True
-    updated_mock_notification = DomainNotification(**sample_notification.model_dump()) # Create a copy
-    updated_mock_notification.is_read = True
+    updated_mock_notification = DomainNotification(
+        notification_id=sample_notification.notification_id,
+        user_id=sample_notification.user_id,
+        type=sample_notification.type,
+        message=sample_notification.message,
+        related_entity_id=sample_notification.related_entity_id,
+        is_read=True,
+        created_at=sample_notification.created_at
+    )
     mock_notification_repo.mark_as_read.return_value = updated_mock_notification
 
     use_case = MarkNotificationAsReadUseCase(notification_repo=mock_notification_repo)
 
     result_notification = await use_case.execute(sample_notification.notification_id, sample_user_for_notifications)
 
-    mock_notification_repo.mark_as_read.assert_called_once_with(sample_notification.notification_id, sample_user_for_notifications.user_id)
+    mock_notification_repo.mark_as_read.assert_called_once_with(notification_id=sample_notification.notification_id, user_id=sample_user_for_notifications.user_id)
     assert result_notification is not None
     assert result_notification.is_read is True
     assert result_notification.notification_id == sample_notification.notification_id
@@ -119,7 +126,7 @@ async def test_mark_notification_as_read_already_read(mock_notification_repo: Ma
 
     result_notification = await use_case.execute(sample_read_notification.notification_id, sample_user_for_notifications)
 
-    mock_notification_repo.mark_as_read.assert_called_once_with(sample_read_notification.notification_id, sample_user_for_notifications.user_id)
+    mock_notification_repo.mark_as_read.assert_called_once_with(notification_id=sample_read_notification.notification_id, user_id=sample_user_for_notifications.user_id)
     assert result_notification.is_read is True # Remains true
 
 @pytest.mark.asyncio
@@ -157,7 +164,7 @@ async def test_mark_all_notifications_as_read_success(mock_notification_repo: Ma
 
     count_updated = await use_case.execute(sample_user_for_notifications)
 
-    mock_notification_repo.mark_all_as_read.assert_called_once_with(sample_user_for_notifications.user_id)
+    mock_notification_repo.mark_all_as_read.assert_called_once_with(user_id=sample_user_for_notifications.user_id)
     assert count_updated == 5
 
 @pytest.mark.asyncio

@@ -12,7 +12,7 @@ from uuid import UUID
 from readmaster_ai.infrastructure.database.config import get_db
 
 # Domain (Entities, Enums, Repositories - Abstract)
-from readmaster_ai.domain.entities.user import User as DomainUser
+from readmaster_ai.domain.entities.user import DomainUser
 from readmaster_ai.domain.value_objects.common_enums import UserRole, DifficultyLevel
 from readmaster_ai.domain.repositories.reading_repository import ReadingRepository
 from readmaster_ai.domain.repositories.quiz_question_repository import QuizQuestionRepository
@@ -206,8 +206,8 @@ async def admin_get_system_configuration(
 
 @router.put("/system-configurations/{config_key}", response_model=SystemConfigResponseDTO, tags=["Admin - System Configuration"])
 async def admin_update_system_configuration(
-    config_key: str = Path(..., description="The key of the configuration to update or create"),
     update_dto: SystemConfigUpdateDTO,
+    config_key: str = Path(..., description="The key of the configuration to update or create"),
     config_repo: SystemConfigurationRepository = Depends(get_system_config_repo)
     # current_admin: DomainUser = Depends(get_current_user) # Already enforced by router dependency
 ):

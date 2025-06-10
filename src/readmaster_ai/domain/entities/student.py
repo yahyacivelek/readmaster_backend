@@ -1,7 +1,7 @@
 from __future__ import annotations
 from typing import List, TYPE_CHECKING, Optional
 from uuid import UUID
-from .user import User, UserRole # Import base User class
+from .user import DomainUser, UserRole # Import base User class
 
 if TYPE_CHECKING:
     from .assessment import Assessment
@@ -10,7 +10,7 @@ if TYPE_CHECKING:
     from .progress_tracking import ProgressTracking
     from .reading import Reading
 
-class Student(User):
+class Student(DomainUser):
     # Student-specific attributes from class diagram; some might be relationships
     # assessments: List[Assessment] -> This will be handled by repositories
     # classes: List[ClassEntity] -> This will be handled by repositories

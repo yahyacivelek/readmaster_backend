@@ -6,7 +6,7 @@ from typing import List, Optional
 from uuid import UUID
 
 # Domain Entities and Repositories
-from readmaster_ai.domain.entities.user import User as DomainUser
+from readmaster_ai.domain.entities.user import DomainUser
 from readmaster_ai.domain.value_objects.common_enums import UserRole
 from readmaster_ai.domain.repositories.user_repository import UserRepository
 from readmaster_ai.domain.repositories.assessment_repository import AssessmentRepository # For reused UC

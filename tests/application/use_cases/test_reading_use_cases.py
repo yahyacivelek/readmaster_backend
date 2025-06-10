@@ -5,19 +5,19 @@ from unittest.mock import AsyncMock, MagicMock, ANY # ANY for comparing objects 
 from uuid import uuid4, UUID
 from datetime import datetime, timezone
 
-from src.readmaster_ai.application.use_cases.reading_use_cases import (
+from readmaster_ai.application.use_cases.reading_use_cases import (
     CreateReadingUseCase, GetReadingUseCase, ListReadingsUseCase,
     UpdateReadingUseCase, DeleteReadingUseCase
 )
-from src.readmaster_ai.domain.entities.reading import Reading as DomainReading
-from src.readmaster_ai.domain.value_objects.common_enums import DifficultyLevel as DifficultyLevelEnum # Use centralized
-from src.readmaster_ai.domain.entities.user import User as DomainUser
-from src.readmaster_ai.domain.value_objects.common_enums import UserRole # For admin_user
-from src.readmaster_ai.domain.repositories.reading_repository import ReadingRepository
-from src.readmaster_ai.domain.repositories.system_configuration_repository import SystemConfigurationRepository # For CreateReading
-from src.readmaster_ai.domain.entities.system_configuration import SystemConfiguration as DomainSystemConfig
-from src.readmaster_ai.application.dto.reading_dtos import ReadingCreateDTO, ReadingUpdateDTO
-from src.readmaster_ai.shared.exceptions import NotFoundException
+from readmaster_ai.domain.entities.reading import Reading as DomainReading
+from readmaster_ai.domain.value_objects.common_enums import DifficultyLevel as DifficultyLevelEnum # Use centralized
+from readmaster_ai.domain.entities.user import DomainUser
+from readmaster_ai.domain.value_objects.common_enums import UserRole # For admin_user
+from readmaster_ai.domain.repositories.reading_repository import ReadingRepository
+from readmaster_ai.domain.repositories.system_configuration_repository import SystemConfigurationRepository # For CreateReading
+from readmaster_ai.domain.entities.system_configuration import SystemConfiguration as DomainSystemConfig
+from readmaster_ai.application.dto.reading_dtos import ReadingCreateDTO, ReadingUpdateDTO
+from readmaster_ai.shared.exceptions import NotFoundException
 
 
 @pytest.fixture

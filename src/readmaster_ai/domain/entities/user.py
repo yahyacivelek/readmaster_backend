@@ -20,7 +20,7 @@ if TYPE_CHECKING:
 from readmaster_ai.domain.value_objects.common_enums import UserRole
 
 
-class User:
+class DomainUser:
     user_id: UUID
     email: str
     password_hash: str  # This should not be directly accessible in many cases

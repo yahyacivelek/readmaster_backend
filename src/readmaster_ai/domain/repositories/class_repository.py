@@ -9,7 +9,7 @@ from uuid import UUID
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from readmaster_ai.domain.entities.class_entity import ClassEntity
-    from readmaster_ai.domain.entities.user import User as DomainUser
+    from readmaster_ai.domain.entities.user import DomainUser
 
 class ClassRepository(ABC):
     """

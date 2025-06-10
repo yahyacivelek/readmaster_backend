@@ -6,13 +6,14 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 from jose import JWTError # Though auth_service.decode_token handles it, good for context
-from uuid import UUID, InvalidUUIDError
+from uuid import UUID
+from builtins import ValueError as InvalidUUIDError
 
 # Application Layer
 from readmaster_ai.application.services.auth_service import AuthenticationService
 
 # Domain Layer
-from readmaster_ai.domain.entities.user import User as DomainUser
+from readmaster_ai.domain.entities.user import DomainUser
 from readmaster_ai.domain.repositories.user_repository import UserRepository
 from readmaster_ai.domain.value_objects.common_enums import UserRole # For role-based access if added
 

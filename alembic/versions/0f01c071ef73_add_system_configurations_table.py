@@ -20,18 +20,33 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     # ### commands to create SystemConfigurations table ###
-    op.create_table('SystemConfigurations',
-        sa.Column('key', sa.String(), nullable=False, primary_key=True),
-        sa.Column('value', postgresql.JSONB(astext_type=sa.Text()), nullable=False),
-        sa.Column('description', sa.Text(), nullable=True),
-        sa.Column('updated_at', sa.DateTime(), nullable=False, server_default=sa.func.current_timestamp(), onupdate=sa.func.current_timestamp())
-    )
-    op.create_index(op.f('ix_SystemConfigurations_key'), 'SystemConfigurations', ['key'], unique=False) # Index on PK is often automatic, but explicit for clarity or if ix_ is convention
+    op.execute("""
+    CREATE TABLE IF NOT EXISTS "SystemConfigurations" (
+        key VARCHAR NOT NULL PRIMARY KEY,
+        value JSONB NOT NULL,
+        description TEXT,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL
+    );
+    """)
+
+    # Add trigger for automatic updated_at timestamp
+    op.execute("""DROP TRIGGER IF EXISTS set_systemconfigurations_updated_at ON "SystemConfigurations";""")
+    op.execute("""
+        CREATE TRIGGER set_systemconfigurations_updated_at
+        BEFORE UPDATE ON "SystemConfigurations"
+        FOR EACH ROW EXECUTE FUNCTION trigger_set_timestamp();
+    """)
     # ### end Alembic commands ###
 
 
 def downgrade() -> None:
     # ### commands to drop SystemConfigurations table ###
-    op.drop_index(op.f('ix_SystemConfigurations_key'), table_name='SystemConfigurations')
-    op.drop_table('SystemConfigurations')
+
+    # Drop the trigger first
+    op.execute("""
+        DROP TRIGGER IF EXISTS set_systemconfigurations_updated_at ON "SystemConfigurations";
+    """)
+
+    # Drop the table (using IF EXISTS for robustness)
+    op.execute("""DROP TABLE IF EXISTS "SystemConfigurations";""")
     # ### end Alembic commands ###

@@ -6,13 +6,13 @@ from uuid import uuid4, UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from unittest.mock import patch # For mocking Celery task dispatch
-
+from unittest.mock import MagicMock
 # Application components
-from src.readmaster_ai.domain.entities.user import User as DomainUser
+from src.readmaster_ai.domain.entities.user import DomainUser
 from src.readmaster_ai.application.services.auth_service import AuthenticationService
 from src.readmaster_ai.infrastructure.database.models import (
     ReadingModel, AssessmentModel, AssessmentResultModel,
-    StudentQuizAnswerModel, QuizQuestionModel
+    StudentQuizAnswerModel, QuizQuestionModel, UserModel
 )
 from src.readmaster_ai.domain.value_objects.common_enums import AssessmentStatus, DifficultyLevel
 
@@ -31,14 +31,24 @@ async def test_reading_for_assessment(db_session: AsyncSession) -> ReadingModel:
     Creates a ReadingModel with associated QuizQuestionModels for assessment tests.
     Attaches question IDs to the reading model instance for easy access in tests.
     """
-    dummy_admin_id = uuid4()
+    # Create an admin user first
+    admin_user = UserModel(
+        user_id=uuid4(),
+        email="admin@test.com",
+        password_hash="dummy_hash",
+        role="admin",
+        first_name="Test",
+        last_name="Admin"
+    )
+    db_session.add(admin_user)
+    await db_session.flush()
 
     reading = ReadingModel(
         reading_id=uuid4(),
         title="The Adventures of Tom Sawyer - Chapter 1",
         language="en",
-        difficulty=DifficultyLevel.INTERMEDIATE.value,
-        added_by_admin_id=dummy_admin_id,
+        difficulty_level=DifficultyLevel.INTERMEDIATE.value,
+        added_by_admin_id=admin_user.user_id,
         content_text="Tom appeared on the sidewalk with a bucket of whitewash and a long-handled brush."
     )
 
@@ -49,7 +59,7 @@ async def test_reading_for_assessment(db_session: AsyncSession) -> ReadingModel:
         question_text="What did Tom have?",
         options={"A": "A cat", "B": "A bucket of whitewash", "C": "A dog"},
         correct_option_id="B",
-        added_by_admin_id=dummy_admin_id
+        added_by_admin_id=admin_user.user_id
     )
 
     q2_id = uuid4()
@@ -59,15 +69,24 @@ async def test_reading_for_assessment(db_session: AsyncSession) -> ReadingModel:
         question_text="Where did Tom appear?",
         options={"A": "In the house", "B": "On the sidewalk", "C": "In the garden"},
         correct_option_id="B",
-        added_by_admin_id=dummy_admin_id
+        added_by_admin_id=admin_user.user_id
     )
 
     db_session.add_all([reading, q1, q2])
-    await db_session.commit()
+    await db_session.flush()
     await db_session.refresh(reading)
 
     # Attach question IDs to the reading model instance for test convenience (not a DB field)
     reading.test_question_ids = [q1.question_id, q2.question_id]
+
+    # Verify the reading exists in the database
+    stmt = select(ReadingModel).where(ReadingModel.reading_id == reading.reading_id)
+    result = await db_session.execute(stmt)
+    db_reading = result.scalar_one_or_none()
+    assert db_reading is not None, "Reading was not properly created in the database"
+
+    # Commit the transaction to ensure data is available for the test
+    await db_session.commit()
     return reading
 
 @pytest.mark.asyncio
@@ -89,12 +108,15 @@ async def test_start_assessment_success(
     assert response_json["student_id"] == str(test_user.user_id)
     assert response_json["status"] == AssessmentStatus.PENDING_AUDIO.value
 
-    # Verify in DB
-    assessment_id = UUID(response_json["assessment_id"])
-    db_assessment = await db_session.get(AssessmentModel, assessment_id)
-    assert db_assessment is not None
-    assert db_assessment.status == AssessmentStatus.PENDING_AUDIO.value
-    assert db_assessment.student_id == test_user.user_id
+    # Verify in DB using a new session
+    async with db_session.begin():
+        assessment_id = UUID(response_json["assessment_id"])
+        stmt = select(AssessmentModel).where(AssessmentModel.assessment_id == assessment_id)
+        result = await db_session.execute(stmt)
+        db_assessment = result.scalar_one_or_none()
+        assert db_assessment is not None
+        assert db_assessment.status == AssessmentStatus.PENDING_AUDIO.value
+        assert db_assessment.student_id == test_user.user_id
 
 @pytest.mark.asyncio
 async def test_start_assessment_reading_not_found(async_client: AsyncClient, student_auth_headers: dict):

@@ -13,6 +13,11 @@ class NotFoundException(ApplicationException):
         message = f"{resource_name} with ID '{resource_id}' not found."
         super().__init__(message, status_code=404)
 
+class ForbiddenException(ApplicationException):
+    """Raised for forbidden actions."""
+    def __init__(self, message="Forbidden", status_code=403):
+        super().__init__(message, status_code=status_code)
+
 class UnauthorizedException(ApplicationException):
     """Raised for authorization failures."""
     def __init__(self, message: str = "Not authorized to perform this action."):
@@ -28,3 +33,5 @@ class ValidationException(ApplicationException):
     def __init__(self, message: str = "Input data validation failed.", errors: dict = None):
         self.errors = errors
         super().__init__(message, status_code=422) # Unprocessable Entity for validation
+
+__all__ = ['ApplicationException', 'NotFoundException', 'ForbiddenException']

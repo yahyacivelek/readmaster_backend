@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List # For type hinting List[ReadingModel]
 
 # Application components
-from src.readmaster_ai.domain.entities.user import User as DomainUser
+from src.readmaster_ai.domain.entities.user import DomainUser
 # UserRole is not strictly needed here unless creating users with specific roles within these tests.
 # from src.readmaster_ai.domain.value_objects.common_enums import UserRole
 from src.readmaster_ai.application.services.auth_service import AuthenticationService

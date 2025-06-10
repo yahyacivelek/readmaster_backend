@@ -6,10 +6,10 @@ from uuid import uuid4, UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func # For DB checks
 from typing import List # For type hints
-from unittest.mock import patch # For mocking NotificationService.notify
+from unittest.mock import patch, MagicMock, AsyncMock # For mocking NotificationService.notify
 
 # Application components
-from src.readmaster_ai.domain.entities.user import User as DomainUser
+from src.readmaster_ai.domain.entities.user import DomainUser
 from src.readmaster_ai.domain.value_objects.common_enums import UserRole, AssessmentStatus, DifficultyLevel
 from src.readmaster_ai.application.services.auth_service import AuthenticationService
 from src.readmaster_ai.infrastructure.database.models import (

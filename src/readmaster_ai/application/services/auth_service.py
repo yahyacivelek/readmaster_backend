@@ -7,7 +7,7 @@ from passlib.context import CryptContext
 from jose import JWTError, jwt
 from uuid import UUID
 
-from readmaster_ai.domain.entities.user import User as DomainUser
+from readmaster_ai.domain.entities.user import DomainUser
 from readmaster_ai.domain.repositories.user_repository import UserRepository
 from readmaster_ai.core.config import jwt_settings # Import JWT configuration
 from readmaster_ai.shared.exceptions import AuthenticationException # ApplicationException could also be used

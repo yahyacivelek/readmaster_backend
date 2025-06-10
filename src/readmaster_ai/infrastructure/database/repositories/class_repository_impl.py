@@ -8,7 +8,7 @@ from sqlalchemy import select, update as sqlalchemy_update, delete as sqlalchemy
 from sqlalchemy.orm import selectinload, joinedload
 
 from readmaster_ai.domain.entities.class_entity import ClassEntity as DomainClassEntity
-from readmaster_ai.domain.entities.user import User as DomainUser # For student object
+from readmaster_ai.domain.entities.user import DomainUser # For student object
 from readmaster_ai.domain.value_objects.common_enums import UserRole # For role conversion
 from readmaster_ai.domain.repositories.class_repository import ClassRepository
 from readmaster_ai.infrastructure.database.models import ClassModel, UserModel, StudentsClassesAssociation

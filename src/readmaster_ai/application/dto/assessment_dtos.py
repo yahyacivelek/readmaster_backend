@@ -2,7 +2,7 @@
 Data Transfer Objects (DTOs) for Assessment operations.
 """
 from pydantic import BaseModel, Field, HttpUrl # HttpUrl for audio_file_url if it's a URL
-from typing import Optional, List # List for future use, e.g., listing assessments
+from typing import Optional, List, Any # List for future use, e.g., listing assessments
 from uuid import UUID
 from datetime import datetime
 from readmaster_ai.domain.value_objects.common_enums import AssessmentStatus # Use centralized enum

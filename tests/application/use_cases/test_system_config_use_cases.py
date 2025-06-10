@@ -5,13 +5,13 @@ from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4 # Not strictly needed here, but often useful in tests
 from datetime import datetime, timezone
 
-from src.readmaster_ai.application.use_cases.system_config_use_cases import (
+from readmaster_ai.application.use_cases.system_config_use_cases import (
     GetSystemConfigurationUseCase, UpdateSystemConfigurationUseCase, ListSystemConfigurationsUseCase
 )
-from src.readmaster_ai.domain.entities.system_configuration import SystemConfiguration as DomainSystemConfig
-from src.readmaster_ai.domain.repositories.system_configuration_repository import SystemConfigurationRepository
-from src.readmaster_ai.application.dto.system_config_dtos import SystemConfigUpdateDTO
-from src.readmaster_ai.shared.exceptions import NotFoundException
+from readmaster_ai.domain.entities.system_configuration import SystemConfiguration as DomainSystemConfig
+from readmaster_ai.domain.repositories.system_configuration_repository import SystemConfigurationRepository
+from readmaster_ai.application.dto.system_config_dtos import SystemConfigUpdateDTO
+from readmaster_ai.shared.exceptions import NotFoundException
 
 @pytest.fixture
 def mock_config_repo() -> MagicMock: # Renamed to avoid conflict if running all tests together

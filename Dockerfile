@@ -4,7 +4,7 @@ FROM python:3.9-slim
 # 2. Set environment variables
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    POETRY_VERSION=1.7.1 \
+    POETRY_VERSION=2.1.3 \
     POETRY_HOME="/opt/poetry" \
     POETRY_VIRTUALENVS_CREATE=false \
     PATH="$POETRY_HOME/bin:$PATH"
@@ -19,7 +19,7 @@ RUN apt-get update && \
     && rm -rf /var/lib/apt/lists/*
 
 # 4. Install Poetry
-RUN curl -sSL https://install.python-poetry.org | python -
+RUN pip install --no-cache-dir "poetry==$POETRY_VERSION"
 
 # 5. Set working directory
 WORKDIR /app
@@ -30,7 +30,7 @@ COPY poetry.lock pyproject.toml ./
 # 7. Install project dependencies
 # --no-root: Don't install the project itself, only dependencies
 # --no-dev: Exclude development dependencies
-RUN poetry install --no-root --no-dev
+RUN poetry install --no-root
 
 # 8. Copy application code
 # This will copy everything from the build context (your project root) into /app in the image.

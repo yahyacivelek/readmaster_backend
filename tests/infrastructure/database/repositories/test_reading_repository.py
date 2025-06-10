@@ -5,14 +5,14 @@ from uuid import uuid4, UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime, timezone
 
-from src.readmaster_ai.domain.entities.reading import Reading as DomainReading
+from readmaster_ai.domain.entities.reading import Reading as DomainReading
 # Use the centralized enum for consistency in tests
-from src.readmaster_ai.domain.value_objects.common_enums import DifficultyLevel as DifficultyLevelEnum
-from src.readmaster_ai.infrastructure.database.repositories.reading_repository_impl import ReadingRepositoryImpl
-from src.readmaster_ai.infrastructure.database.repositories.user_repository_impl import UserRepositoryImpl # To create admin user
-from src.readmaster_ai.domain.entities.user import User as DomainUser
-from src.readmaster_ai.domain.value_objects.common_enums import UserRole # To create admin user
-from src.readmaster_ai.shared.exceptions import ApplicationException # For testing error cases if any
+from readmaster_ai.domain.value_objects.common_enums import DifficultyLevel as DifficultyLevelEnum
+from readmaster_ai.infrastructure.database.repositories.reading_repository_impl import ReadingRepositoryImpl
+from readmaster_ai.infrastructure.database.repositories.user_repository_impl import UserRepositoryImpl # To create admin user
+from readmaster_ai.domain.entities.user import DomainUser
+from readmaster_ai.domain.value_objects.common_enums import UserRole # To create admin user
+from readmaster_ai.shared.exceptions import ApplicationException # For testing error cases if any
 
 @pytest_asyncio.fixture(scope="function")
 async def admin_user_for_readings(db_session: AsyncSession) -> DomainUser:

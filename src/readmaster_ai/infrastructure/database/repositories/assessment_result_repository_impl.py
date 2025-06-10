@@ -1,7 +1,7 @@
 """
 Concrete implementation of the AssessmentResultRepository interface using SQLAlchemy.
 """
-from typing import Optional
+from typing import Optional, List
 from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select

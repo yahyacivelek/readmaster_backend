@@ -7,7 +7,7 @@ from typing import List, Tuple, Optional
 
 # Domain Entities and Repositories
 from readmaster_ai.domain.entities.class_entity import ClassEntity as DomainClassEntity
-from readmaster_ai.domain.entities.user import User as DomainUser
+from readmaster_ai.domain.entities.user import DomainUser
 from readmaster_ai.domain.value_objects.common_enums import UserRole # For role checks
 from readmaster_ai.domain.repositories.class_repository import ClassRepository
 from readmaster_ai.domain.repositories.user_repository import UserRepository # To validate student existence

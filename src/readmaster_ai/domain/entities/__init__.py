@@ -1,6 +1,6 @@
 # Expose domain entities for easier importing
 
-from .user import User, UserRole
+from .user import DomainUser, UserRole
 from .student import Student
 from .teacher import Teacher
 from .parent import Parent
@@ -15,7 +15,7 @@ from .progress_tracking import ProgressTracking
 from .notification import Notification, NotificationType
 
 __all__ = [
-    "User", "UserRole",
+    "DomainUser", "UserRole",
     "Student",
     "Teacher",
     "Parent",

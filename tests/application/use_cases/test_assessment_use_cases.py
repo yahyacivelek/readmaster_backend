@@ -4,37 +4,45 @@ import pytest_asyncio
 from unittest.mock import AsyncMock, MagicMock, patch, ANY # ANY for comparing objects partially
 from uuid import uuid4, UUID
 from datetime import datetime, timezone
+from typing import List
 
-from src.readmaster_ai.application.use_cases.assessment_use_cases import (
+from readmaster_ai.application.use_cases.assessment_use_cases import (
     StartAssessmentUseCase, RequestAssessmentAudioUploadURLUseCase,
     ConfirmAudioUploadUseCase, SubmitQuizAnswersUseCase, GetAssessmentResultDetailsUseCase
 )
-from src.readmaster_ai.domain.entities.assessment import Assessment as DomainAssessment
-from src.readmaster_ai.domain.value_objects.common_enums import AssessmentStatus as AssessmentStatusEnum
-from src.readmaster_ai.domain.entities.assessment_result import AssessmentResult as DomainAssessmentResult
-from src.readmaster_ai.domain.entities.student_quiz_answer import StudentQuizAnswer as DomainStudentQuizAnswer
-from src.readmaster_ai.domain.entities.reading import Reading as DomainReading
-from src.readmaster_ai.domain.entities.quiz_question import QuizQuestion as DomainQuizQuestion
-from src.readmaster_ai.domain.entities.user import User as DomainUser
-from src.readmaster_ai.domain.value_objects.common_enums import UserRole # Corrected import
-from src.readmaster_ai.domain.repositories.assessment_repository import AssessmentRepository
-from src.readmaster_ai.domain.repositories.reading_repository import ReadingRepository
-from src.readmaster_ai.domain.repositories.assessment_result_repository import AssessmentResultRepository
-from src.readmaster_ai.domain.repositories.student_quiz_answer_repository import StudentQuizAnswerRepository
-from src.readmaster_ai.domain.repositories.quiz_question_repository import QuizQuestionRepository
-from src.readmaster_ai.application.interfaces.file_storage_interface import FileStorageInterface
-from src.readmaster_ai.application.dto.assessment_dtos import (
+from readmaster_ai.domain.entities.assessment import Assessment as DomainAssessment
+from readmaster_ai.domain.value_objects.common_enums import AssessmentStatus as AssessmentStatusEnum
+from readmaster_ai.domain.entities.assessment_result import AssessmentResult as DomainAssessmentResult
+from readmaster_ai.domain.entities.student_quiz_answer import StudentQuizAnswer as DomainStudentQuizAnswer
+from readmaster_ai.domain.entities.reading import Reading as DomainReading
+from readmaster_ai.domain.entities.quiz_question import QuizQuestion as DomainQuizQuestion
+from readmaster_ai.domain.entities.user import DomainUser
+from readmaster_ai.domain.value_objects.common_enums import UserRole # Corrected import
+from readmaster_ai.domain.repositories.assessment_repository import AssessmentRepository
+from readmaster_ai.domain.repositories.reading_repository import ReadingRepository
+from readmaster_ai.domain.repositories.assessment_result_repository import AssessmentResultRepository
+from readmaster_ai.domain.repositories.student_quiz_answer_repository import StudentQuizAnswerRepository
+from readmaster_ai.domain.repositories.quiz_question_repository import QuizQuestionRepository
+from readmaster_ai.application.interfaces.file_storage_interface import FileStorageInterface
+from readmaster_ai.application.dto.assessment_dtos import (
     StartAssessmentRequestDTO, ConfirmUploadRequestDTO, QuizAnswerDTO, QuizSubmissionRequestDTO,
     RequestUploadURLResponseDTO, ConfirmUploadResponseDTO, QuizSubmissionResponseDTO, AssessmentResultDetailDTO # Added missing DTOs
 )
-from src.readmaster_ai.shared.exceptions import NotFoundException, ApplicationException
+from readmaster_ai.shared.exceptions import NotFoundException, ApplicationException
 
 
 # --- Fixtures ---
 @pytest.fixture
 def mock_assessment_repo() -> MagicMock:
     mock = MagicMock(spec=AssessmentRepository)
-    mock.create = AsyncMock(side_effect=lambda assessment: assessment)
+    mock.create = AsyncMock(side_effect=lambda assessment: DomainAssessment(
+        assessment_id=assessment.assessment_id,
+        student_id=assessment.student_id,
+        reading_id=assessment.reading_id,
+        status=assessment.status,
+        assessment_date=assessment.assessment_date,
+        updated_at=assessment.updated_at
+    ))
     mock.get_by_id = AsyncMock(return_value=None)
     mock.update = AsyncMock(side_effect=lambda assessment: assessment)
     # mock.list_by_student_ids = AsyncMock(return_value=[]) # If needed by other tests
@@ -137,11 +145,11 @@ async def test_request_upload_url_success(mock_assessment_repo: MagicMock, mock_
 
     mock_assessment_repo.get_by_id.assert_called_once_with(sample_assessment.assessment_id)
     mock_file_storage_service.get_presigned_upload_url.assert_called_once_with(
-        blob_name=f"assessments_audio/{sample_assessment.assessment_id}.mp3",
-        content_type="audio/mp3"
+        f"assessments_audio/{sample_assessment.assessment_id}.wav",
+        "audio/mp3"
     )
     assert response_dto.upload_url == "http://fakeurl.com/upload"
-    assert response_dto.blob_name == f"assessments_audio/{sample_assessment.assessment_id}.mp3"
+    assert response_dto.blob_name == f"assessments_audio/{sample_assessment.assessment_id}.wav"
 
 @pytest.mark.asyncio
 async def test_request_upload_url_assessment_not_found(mock_assessment_repo: MagicMock, mock_file_storage_service: MagicMock, sample_student_user: DomainUser):
@@ -160,7 +168,7 @@ async def test_request_upload_url_wrong_status(mock_assessment_repo: MagicMock, 
 
     with pytest.raises(ApplicationException) as exc_info:
         await use_case.execute(sample_assessment.assessment_id, sample_student_user)
-    assert "Cannot request upload URL" in exc_info.value.message
+    assert f"Status is '{AssessmentStatusEnum.COMPLETED.value}', expected PENDING_AUDIO" in exc_info.value.message
     assert exc_info.value.status_code == 400
 
 
@@ -281,7 +289,7 @@ async def test_submit_quiz_answers_wrong_assessment_status(
 
     with pytest.raises(ApplicationException) as exc_info:
         await use_case.execute(sample_assessment.assessment_id, sample_student_user, submission_dto)
-    assert "Quiz cannot be submitted yet" in exc_info.value.message # Or similar message from use case
+    assert "Status is 'pending_audio'. Quiz can only be submitted for COMPLETED assessments." in exc_info.value.message # Or similar message from use case
     assert exc_info.value.status_code == 400
 
 
@@ -382,5 +390,5 @@ async def test_get_assessment_result_details_not_completed(
 
     with pytest.raises(ApplicationException) as exc_info:
         await use_case.execute(sample_assessment.assessment_id, sample_student_user)
-    assert "results are not yet available" in exc_info.value.message.lower()
+    assert "results not ready. status: processing" in exc_info.value.message.lower()
     assert exc_info.value.status_code == 400

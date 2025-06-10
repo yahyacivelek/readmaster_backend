@@ -11,7 +11,7 @@ from uuid import UUID
 from readmaster_ai.infrastructure.database.config import get_db
 
 # Domain (Entities for type hinting)
-from readmaster_ai.domain.entities.user import User as DomainUser
+from readmaster_ai.domain.entities.user import DomainUser
 
 # Presentation (Dependencies, Schemas - DTOs are imported from Application)
 from readmaster_ai.presentation.dependencies.auth_deps import get_current_user

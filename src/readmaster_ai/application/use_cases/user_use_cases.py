@@ -4,7 +4,7 @@ Use cases related to User operations.
 from passlib.context import CryptContext
 from uuid import uuid4
 
-from readmaster_ai.domain.entities.user import User as DomainUser
+from readmaster_ai.domain.entities.user import DomainUser
 from readmaster_ai.domain.repositories.user_repository import UserRepository
 from readmaster_ai.domain.value_objects.common_enums import UserRole # For role handling
 from readmaster_ai.presentation.schemas.user_schemas import UserCreateRequest # DTO for input

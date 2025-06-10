@@ -2,21 +2,19 @@
 API Router for WebSocket communication.
 Handles WebSocket connections, authentication, and basic message lifecycle.
 """
-API Router for WebSocket communication.
-Handles WebSocket connections, authentication, and basic message lifecycle.
-"""
 import asyncio
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional
-from uuid import UUID, InvalidUUIDError
+from uuid import UUID
+from builtins import ValueError as InvalidUUIDError
 
 # Connection Manager (global instance)
 from readmaster_ai.presentation.websockets.connection_manager import manager
 
 # Authentication related imports
 from readmaster_ai.application.services.auth_service import AuthenticationService
-from readmaster_ai.domain.entities.user import User as DomainUser
+from readmaster_ai.domain.entities.user import DomainUser
 from readmaster_ai.domain.repositories.user_repository import UserRepository
 from readmaster_ai.infrastructure.database.repositories.user_repository_impl import UserRepositoryImpl
 from readmaster_ai.infrastructure.database.config import AsyncSessionLocal # Direct session for auth helper

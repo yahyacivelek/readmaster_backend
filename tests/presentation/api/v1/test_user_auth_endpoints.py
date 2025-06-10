@@ -10,7 +10,7 @@ from sqlalchemy import select
 from src.readmaster_ai.infrastructure.database.models import UserModel
 from src.readmaster_ai.domain.value_objects.common_enums import UserRole # Enum for role checks/assertions
 from src.readmaster_ai.application.services.auth_service import AuthenticationService
-from src.readmaster_ai.domain.entities.user import User as DomainUser
+from src.readmaster_ai.domain.entities.user import DomainUser
 
 # Fixtures from conftest.py (async_client, db_session, test_user, auth_service_for_test_tokens)
 # and helper get_auth_headers_for_user will be automatically available.

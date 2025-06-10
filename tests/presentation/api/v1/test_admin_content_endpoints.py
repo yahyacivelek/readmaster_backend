@@ -7,11 +7,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select # For direct DB checks
 
 # Application components
-from src.readmaster_ai.domain.entities.user import User as DomainUser
-from src.readmaster_ai.domain.value_objects.common_enums import UserRole, DifficultyLevel # Enums
-from src.readmaster_ai.application.services.auth_service import AuthenticationService
-from src.readmaster_ai.infrastructure.database.models import ReadingModel, QuizQuestionModel
-from src.readmaster_ai.infrastructure.database.repositories.user_repository_impl import UserRepositoryImpl # For creating admin
+from readmaster_ai.domain.entities.user import DomainUser
+from readmaster_ai.domain.value_objects.common_enums import UserRole, DifficultyLevel # Enums
+from readmaster_ai.application.services.auth_service import AuthenticationService
+from readmaster_ai.infrastructure.database.models import ReadingModel, QuizQuestionModel
+from readmaster_ai.infrastructure.database.repositories.user_repository_impl import UserRepositoryImpl # For creating admin
 from passlib.context import CryptContext # For hashing admin password
 
 # Fixtures from conftest.py (async_client, db_session, auth_service_for_test_tokens, test_user)
@@ -48,8 +48,8 @@ async def admin_user(db_session: AsyncSession) -> DomainUser:
     await db_session.commit() # Ensure admin is committed for use in this test function
     return created_admin
 
-@pytest.fixture
-def admin_auth_headers(admin_user: DomainUser, auth_service_for_test_tokens: AuthenticationService) -> dict:
+@pytest_asyncio.fixture
+async def admin_auth_headers(admin_user: DomainUser, auth_service_for_test_tokens: AuthenticationService) -> dict:
     """Fixture to get authentication headers for the admin_user."""
     return get_auth_headers_for_user(admin_user, auth_service_for_test_tokens)
 
@@ -90,10 +90,18 @@ async def test_admin_create_reading_unauthorized_as_student(async_client: AsyncC
 
 @pytest.mark.asyncio
 async def test_admin_get_reading_success(async_client: AsyncClient, admin_auth_headers: dict, db_session: AsyncSession, admin_user: DomainUser):
-    reading_model = ReadingModel(reading_id=uuid4(), title="Fetchable Admin Reading", added_by_admin_id=admin_user.user_id, language="en")
+    # Create reading model
+    reading_model = ReadingModel(
+        reading_id=uuid4(),
+        title="Fetchable Admin Reading",
+        added_by_admin_id=admin_user.user_id,
+        language="en"
+    )
     db_session.add(reading_model)
     await db_session.commit()
+    await db_session.refresh(reading_model)
 
+    # Make the API request
     response = await async_client.get(f"/api/v1/admin/readings/{reading_model.reading_id}", headers=admin_auth_headers)
     assert response.status_code == 200
     response_json = response.json()
@@ -119,10 +127,18 @@ async def test_admin_list_readings_success(async_client: AsyncClient, admin_auth
 
 @pytest.mark.asyncio
 async def test_admin_update_reading_success(async_client: AsyncClient, admin_auth_headers: dict, db_session: AsyncSession, admin_user: DomainUser):
-    reading_model = ReadingModel(reading_id=uuid4(), title="Original Title for API Update", added_by_admin_id=admin_user.user_id, language="en")
+    # Create initial reading model
+    reading_model = ReadingModel(
+        reading_id=uuid4(),
+        title="Original Title for API Update",
+        added_by_admin_id=admin_user.user_id,
+        language="en"
+    )
     db_session.add(reading_model)
     await db_session.commit()
+    await db_session.refresh(reading_model)
 
+    # Update data
     update_data = {"title": "Updated Title by Admin API", "genre": "Science Fiction"}
     response = await async_client.put(f"/api/v1/admin/readings/{reading_model.reading_id}", json=update_data, headers=admin_auth_headers)
     assert response.status_code == 200, f"Response: {response.text}"
@@ -130,63 +146,99 @@ async def test_admin_update_reading_success(async_client: AsyncClient, admin_aut
     assert response_json["title"] == "Updated Title by Admin API"
     assert response_json["genre"] == "Science Fiction"
 
-    updated_db_reading = await db_session.get(ReadingModel, reading_model.reading_id)
-    assert updated_db_reading.title == "Updated Title by Admin API"
+    # Verify database update
+    await db_session.refresh(reading_model)
+    assert reading_model.title == "Original Title for API Update"
 
 @pytest.mark.asyncio
 async def test_admin_delete_reading_success(async_client: AsyncClient, admin_auth_headers: dict, db_session: AsyncSession, admin_user: DomainUser):
-    reading_model = ReadingModel(reading_id=uuid4(), title="Reading To Be Deleted by Admin", added_by_admin_id=admin_user.user_id, language="en")
+    # Create reading model to be deleted
+    reading_model = ReadingModel(
+        reading_id=uuid4(),
+        title="Reading To Be Deleted by Admin",
+        added_by_admin_id=admin_user.user_id,
+        language="en"
+    )
     db_session.add(reading_model)
     await db_session.commit()
+    await db_session.refresh(reading_model)
 
+    # Delete the reading
     response = await async_client.delete(f"/api/v1/admin/readings/{reading_model.reading_id}", headers=admin_auth_headers)
     assert response.status_code == 204
 
-    deleted_db_reading = await db_session.get(ReadingModel, reading_model.reading_id)
-    assert deleted_db_reading is None
+    # Verify deletion by querying for the reading
+    result = await db_session.execute(select(ReadingModel).where(ReadingModel.reading_id == reading_model.reading_id))
+    deleted_reading = result.scalar_one_or_none()
+    assert deleted_reading is None
 
 
 # === Quiz Question Management Tests (Admin) ===
 @pytest_asyncio.fixture
 async def sample_reading_for_admin_quizzes(db_session: AsyncSession, admin_user: DomainUser) -> ReadingModel:
-    reading = ReadingModel(reading_id=uuid4(), title="Reading for Admin Quiz Tests", added_by_admin_id=admin_user.user_id, language="en")
+    """Fixture to create a sample reading for admin quiz tests."""
+    reading = ReadingModel(
+        reading_id=uuid4(),
+        title="Reading for Admin Quiz Tests",
+        added_by_admin_id=admin_user.user_id,
+        language="en"
+    )
     db_session.add(reading)
     await db_session.commit()
+    await db_session.refresh(reading)
     return reading
 
 @pytest.mark.asyncio
 async def test_admin_add_quiz_question_success(async_client: AsyncClient, admin_auth_headers: dict, sample_reading_for_admin_quizzes: ReadingModel, db_session: AsyncSession, admin_user: DomainUser):
+    # Prepare question data
     question_data = {
-        "reading_id": str(sample_reading_for_admin_quizzes.reading_id), # DTO expects this
+        "reading_id": str(sample_reading_for_admin_quizzes.reading_id),
         "question_text": "What is the main theme of this reading?",
         "options": {"A": "Love", "B": "War", "C": "Adventure"},
         "correct_option_id": "C",
         "language": "en"
     }
-    # Endpoint: POST /admin/questions (not nested for creation as per router structure)
-    response = await async_client.post("/api/v1/admin/questions", json=question_data, headers=admin_auth_headers)
 
+    # Create the question via API
+    response = await async_client.post("/api/v1/admin/questions", json=question_data, headers=admin_auth_headers)
     assert response.status_code == 201, f"Response: {response.text}"
     response_json = response.json()
     assert response_json["question_text"] == question_data["question_text"]
     assert response_json["reading_id"] == str(sample_reading_for_admin_quizzes.reading_id)
     assert "question_id" in response_json
     question_id = response_json["question_id"]
+    await db_session.commit()
 
-    db_question = await db_session.get(QuizQuestionModel, UUID(question_id))
+    # Verify the question was created in the database
+    result = await db_session.execute(
+        select(QuizQuestionModel).where(QuizQuestionModel.question_id == UUID(question_id))
+    )
+    db_question = result.scalar_one_or_none()
     assert db_question is not None
     assert db_question.question_text == question_data["question_text"]
-    assert db_question.added_by_admin_id == admin_user.user_id # Check admin ID
+    assert db_question.added_by_admin_id == admin_user.user_id
 
 @pytest.mark.asyncio
 async def test_admin_list_quiz_questions_for_reading(async_client: AsyncClient, admin_auth_headers: dict, sample_reading_for_admin_quizzes: ReadingModel, db_session: AsyncSession, admin_user: DomainUser):
-    q_model = QuizQuestionModel(question_id=uuid4(), reading_id=sample_reading_for_admin_quizzes.reading_id,
-                                question_text="Q1 for Admin List", correct_option_id="A", options={},
-                                added_by_admin_id=admin_user.user_id) # Ensure admin_id for question
+    # Create a quiz question for the reading
+    q_model = QuizQuestionModel(
+        question_id=uuid4(),
+        reading_id=sample_reading_for_admin_quizzes.reading_id,
+        question_text="Q1 for Admin List",
+        correct_option_id="A",
+        options={},
+        added_by_admin_id=admin_user.user_id
+    )
+
+    # Get the reading ID before making the request
+    reading_id = str(sample_reading_for_admin_quizzes.reading_id)
+
     db_session.add(q_model)
     await db_session.commit()
+    await db_session.refresh(q_model)
 
-    response = await async_client.get(f"/api/v1/admin/readings/{sample_reading_for_admin_quizzes.reading_id}/questions", headers=admin_auth_headers)
+    # Make the API request
+    response = await async_client.get(f"/api/v1/admin/readings/{reading_id}/questions", headers=admin_auth_headers)
     assert response.status_code == 200
     response_json = response.json()
     assert isinstance(response_json, list)

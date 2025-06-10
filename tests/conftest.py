@@ -7,29 +7,29 @@ from uuid import uuid4
 
 import pytest
 import pytest_asyncio # For async fixtures
-from httpx import AsyncClient
+from httpx import AsyncClient, ASGITransport
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import NullPool # Use NullPool for test database connections
 
 # Application components to be tested or overridden
-from src.readmaster_ai.main import app as fastapi_app
-from src.readmaster_ai.infrastructure.database.models import Base
-from src.readmaster_ai.infrastructure.database.config import get_db as app_get_db # Original get_db
+from readmaster_ai.main import app as fastapi_app
+from readmaster_ai.infrastructure.database.models import Base
+from readmaster_ai.infrastructure.database.config import get_db as app_get_db # Original get_db
 # DATABASE_URL as APP_DATABASE_URL is not needed if we define TEST_DATABASE_URL directly
 
 # Core components for testing
-from src.readmaster_ai.core.config import jwt_settings # For auth service if it uses global settings
-from src.readmaster_ai.domain.entities.user import User as DomainUser # For type hints and test_user
-from src.readmaster_ai.domain.value_objects.common_enums import UserRole # For creating test user
-from src.readmaster_ai.application.services.auth_service import AuthenticationService # For generating test tokens
-from src.readmaster_ai.infrastructure.database.models import UserModel # For creating test user in DB
+from readmaster_ai.core.config import jwt_settings # For auth service if it uses global settings
+from readmaster_ai.domain.entities.user import DomainUser # For type hints and test_user
+from readmaster_ai.domain.value_objects.common_enums import UserRole # For creating test user
+from readmaster_ai.application.services.auth_service import AuthenticationService # For generating test tokens
+from readmaster_ai.infrastructure.database.models import UserModel # For creating test user in DB
 
 # --- Test Database Configuration ---
 # Use a separate database for testing to avoid conflicts with development data.
 # Ensure this database exists and the user has permissions.
 # It will be wiped and recreated (tables dropped/created) for each test session.
-DEFAULT_TEST_DB_URL = "postgresql+asyncpg://test_user:test_password@localhost:5432/readmaster_test_db"
+DEFAULT_TEST_DB_URL = "postgresql+asyncpg://test_user:test_password@localhost:5433/readmaster_test_db"
 TEST_DATABASE_URL = os.getenv("TEST_DATABASE_URL", DEFAULT_TEST_DB_URL)
 
 # --- Test Engine and Session Setup ---
@@ -116,7 +116,7 @@ async def db_session(test_app_with_db_override: Any) -> AsyncGenerator[AsyncSess
 @pytest_asyncio.fixture(scope="function")
 async def async_client(test_app_with_db_override: Any) -> AsyncGenerator[AsyncClient, None]:
     """Provides an HTTPX AsyncClient for making API requests to the test application."""
-    async with AsyncClient(app=test_app_with_db_override, base_url="http://testserver") as client:
+    async with AsyncClient(transport=ASGITransport(app=test_app_with_db_override), base_url="http://testserver") as client:
         yield client
 
 # --- Fixture for a Default Test User ---
@@ -172,7 +172,7 @@ def auth_service_for_test_tokens(db_session: AsyncSession) -> AuthenticationServ
     Useful for generating tokens for test users.
     """
     # Local import to avoid circular dependency if auth_service imports things that lead back here
-    from src.readmaster_ai.infrastructure.database.repositories.user_repository_impl import UserRepositoryImpl
+    from readmaster_ai.infrastructure.database.repositories.user_repository_impl import UserRepositoryImpl
     user_repo = UserRepositoryImpl(db_session)
     return AuthenticationService(user_repo)
 

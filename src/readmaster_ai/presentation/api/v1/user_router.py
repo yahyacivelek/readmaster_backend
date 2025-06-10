@@ -19,7 +19,7 @@ from readmaster_ai.infrastructure.database.repositories.user_repository_impl imp
 from readmaster_ai.shared.exceptions import ApplicationException
 
 # For get_current_user dependency and DomainUser type hint
-from readmaster_ai.domain.entities.user import User as DomainUser
+from readmaster_ai.domain.entities.user import DomainUser
 from readmaster_ai.presentation.dependencies.auth_deps import get_current_user
 
 router = APIRouter(prefix="/users", tags=["Users"])

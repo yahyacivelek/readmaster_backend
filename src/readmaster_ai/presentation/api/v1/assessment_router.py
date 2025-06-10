@@ -1,7 +1,7 @@
 """
 API Router for Assessment related operations, primarily initiated by students.
 """
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Path
 from sqlalchemy.ext.asyncio import AsyncSession # Not directly used, but good for context if DI changes
 from uuid import UUID
 
@@ -9,7 +9,7 @@ from uuid import UUID
 from readmaster_ai.infrastructure.database.config import get_db
 
 # Domain (Entities for type hinting)
-from readmaster_ai.domain.entities.user import User as DomainUser
+from readmaster_ai.domain.entities.user import DomainUser
 
 # Presentation (Dependencies, DTOs from Application)
 from readmaster_ai.presentation.dependencies.auth_deps import get_current_user
@@ -171,8 +171,8 @@ async def request_assessment_audio_upload_url(
 
 @router.post("/{assessment_id}/confirm-upload", response_model=ConfirmUploadResponseDTO)
 async def confirm_assessment_audio_upload(
-    assessment_id: UUID = Path(..., description="The ID of the assessment for which upload is being confirmed."),
     request_data: ConfirmUploadRequestDTO,
+    assessment_id: UUID = Path(..., description="The ID of the assessment for which upload is being confirmed."),
     current_user: DomainUser = Depends(get_current_user),
     assessment_repo: AssessmentRepository = Depends(get_assessment_repo)
     # file_storage_service is not directly needed by this endpoint,
@@ -201,8 +201,8 @@ async def confirm_assessment_audio_upload(
 
 @router.post("/{assessment_id}/quiz-answers", response_model=QuizSubmissionResponseDTO)
 async def submit_quiz_answers_for_assessment(
-    assessment_id: UUID = Path(..., description="The ID of the assessment for which answers are being submitted."),
     submission_data: QuizSubmissionRequestDTO,
+    assessment_id: UUID = Path(..., description="The ID of the assessment for which answers are being submitted."),
     current_user: DomainUser = Depends(get_current_user),
     assessment_repo: AssessmentRepository = Depends(get_assessment_repo),
     quiz_question_repo: QuizQuestionRepository = Depends(get_quiz_question_repo),

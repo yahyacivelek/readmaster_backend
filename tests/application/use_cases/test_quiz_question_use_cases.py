@@ -5,18 +5,18 @@ from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4, UUID
 from datetime import datetime, timezone
 
-from src.readmaster_ai.application.use_cases.quiz_question_use_cases import (
+from readmaster_ai.application.use_cases.quiz_question_use_cases import (
     AddQuizQuestionToReadingUseCase, GetQuizQuestionUseCase, ListQuizQuestionsByReadingUseCase,
     UpdateQuizQuestionUseCase, DeleteQuizQuestionUseCase
 )
-from src.readmaster_ai.domain.entities.quiz_question import QuizQuestion as DomainQuizQuestion
-from src.readmaster_ai.domain.entities.reading import Reading as DomainReading
-from src.readmaster_ai.domain.entities.user import User as DomainUser
-from src.readmaster_ai.domain.value_objects.common_enums import UserRole # For admin user
-from src.readmaster_ai.domain.repositories.quiz_question_repository import QuizQuestionRepository
-from src.readmaster_ai.domain.repositories.reading_repository import ReadingRepository
-from src.readmaster_ai.application.dto.quiz_question_dtos import QuizQuestionCreateDTO, QuizQuestionUpdateDTO
-from src.readmaster_ai.shared.exceptions import NotFoundException
+from readmaster_ai.domain.entities.quiz_question import QuizQuestion as DomainQuizQuestion
+from readmaster_ai.domain.entities.reading import Reading as DomainReading
+from readmaster_ai.domain.entities.user import DomainUser
+from readmaster_ai.domain.value_objects.common_enums import UserRole # For admin user
+from readmaster_ai.domain.repositories.quiz_question_repository import QuizQuestionRepository
+from readmaster_ai.domain.repositories.reading_repository import ReadingRepository
+from readmaster_ai.application.dto.quiz_question_dtos import QuizQuestionCreateDTO, QuizQuestionUpdateDTO
+from readmaster_ai.shared.exceptions import NotFoundException
 
 @pytest.fixture
 def mock_quiz_repo() -> MagicMock:

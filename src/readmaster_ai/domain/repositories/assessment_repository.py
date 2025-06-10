@@ -2,7 +2,7 @@
 Abstract repository interface for Assessment entities.
 """
 from abc import ABC, abstractmethod
-from typing import Optional
+from typing import Optional, List
 from uuid import UUID
 from readmaster_ai.domain.entities.assessment import Assessment
 

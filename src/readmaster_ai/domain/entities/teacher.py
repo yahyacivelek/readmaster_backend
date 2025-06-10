@@ -1,7 +1,7 @@
 from __future__ import annotations
 from typing import List, TYPE_CHECKING, Optional
 from uuid import UUID
-from .user import User, UserRole
+from .user import DomainUser, UserRole
 
 if TYPE_CHECKING:
     from .class_entity import ClassEntity # Corrected name
@@ -9,7 +9,7 @@ if TYPE_CHECKING:
     from .reading import Reading
     from .assessment import Assessment # For assignReading
 
-class Teacher(User):
+class Teacher(DomainUser):
     # classes: List[ClassEntity] # Managed by repository
 
     def __init__(self, *args, **kwargs):

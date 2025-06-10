@@ -12,7 +12,7 @@ from readmaster_ai.infrastructure.database.models import QuizQuestionModel
 from readmaster_ai.shared.exceptions import ApplicationException # For error handling if needed
 
 
-def _quiz_model_to_domain(model: QuizQuestionModel) -> Optional[DomainQuizQuestion]:
+async def _quiz_model_to_domain(model: QuizQuestionModel) -> Optional[DomainQuizQuestion]:
     """Converts a QuizQuestionModel SQLAlchemy object to a DomainQuizQuestion domain entity."""
     if not model:
         return None
@@ -50,7 +50,8 @@ class QuizQuestionRepositoryImpl(QuizQuestionRepository):
         await self.session.flush()
         await self.session.refresh(model)
 
-        domain_entity = _quiz_model_to_domain(model)
+        domain_entity = await _quiz_model_to_domain(model)
+        await self.session.commit()
         if not domain_entity: # Should not happen if model creation and refresh succeeded
             raise ApplicationException("Failed to map created QuizQuestionModel back to domain entity.", status_code=500)
         return domain_entity
@@ -60,7 +61,7 @@ class QuizQuestionRepositoryImpl(QuizQuestionRepository):
         stmt = select(QuizQuestionModel).where(QuizQuestionModel.question_id == question_id)
         result = await self.session.execute(stmt)
         model = result.scalar_one_or_none()
-        return _quiz_model_to_domain(model)
+        return await _quiz_model_to_domain(model)
 
     async def list_by_reading_id(self, reading_id: UUID) -> List[DomainQuizQuestion]:
         """Lists all quiz questions for a given reading ID."""
@@ -68,8 +69,11 @@ class QuizQuestionRepositoryImpl(QuizQuestionRepository):
         result = await self.session.execute(stmt)
         models = result.scalars().all()
         # Ensure that mapping failures don't stop the entire list, but filter out None results
-        return [dq for m in models if (dq := _quiz_model_to_domain(m)) is not None]
-
+        domain_questions = []
+        for model in models:
+            if domain_question := await _quiz_model_to_domain(model):
+                domain_questions.append(domain_question)
+        return domain_questions
 
     async def update(self, question: DomainQuizQuestion) -> Optional[DomainQuizQuestion]:
         """Updates an existing quiz question."""
@@ -98,7 +102,7 @@ class QuizQuestionRepositoryImpl(QuizQuestionRepository):
             return None # Question not found for update
 
         await self.session.flush()
-        domain_entity = _quiz_model_to_domain(updated_model)
+        domain_entity = await _quiz_model_to_domain(updated_model)
         if not domain_entity: # Should not happen
             raise ApplicationException("Failed to map updated QuizQuestionModel back to domain entity.", status_code=500)
         return domain_entity

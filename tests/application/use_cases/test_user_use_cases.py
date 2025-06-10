@@ -5,14 +5,14 @@ from unittest.mock import AsyncMock, MagicMock, patch # For mocking async method
 from uuid import uuid4, UUID
 from datetime import datetime, timezone
 
-from src.readmaster_ai.application.use_cases.user_use_cases import (
+from readmaster_ai.application.use_cases.user_use_cases import (
     CreateUserUseCase, GetUserProfileUseCase, UpdateUserProfileUseCase
 )
-from src.readmaster_ai.domain.entities.user import User as DomainUser
-from src.readmaster_ai.domain.value_objects.common_enums import UserRole # Corrected import
-from src.readmaster_ai.domain.repositories.user_repository import UserRepository
-from src.readmaster_ai.presentation.schemas.user_schemas import UserCreateRequest, UserUpdateRequest # DTOs from presentation for now
-from src.readmaster_ai.shared.exceptions import ApplicationException, NotFoundException
+from readmaster_ai.domain.entities.user import DomainUser
+from readmaster_ai.domain.value_objects.common_enums import UserRole # Corrected import
+from readmaster_ai.domain.repositories.user_repository import UserRepository
+from readmaster_ai.presentation.schemas.user_schemas import UserCreateRequest, UserUpdateRequest # DTOs from presentation for now
+from readmaster_ai.shared.exceptions import ApplicationException, NotFoundException
 
 @pytest.fixture
 def mock_user_repo() -> MagicMock:

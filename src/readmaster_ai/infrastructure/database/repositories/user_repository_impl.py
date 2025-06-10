@@ -3,10 +3,10 @@ Concrete implementation of the UserRepository interface using SQLAlchemy.
 """
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from typing import Optional
+from typing import Optional, List
 from uuid import UUID
 
-from readmaster_ai.domain.entities.user import User as DomainUser
+from readmaster_ai.domain.entities.user import DomainUser
 # UserRole is needed for converting between domain and model
 from readmaster_ai.domain.value_objects.common_enums import UserRole
 from readmaster_ai.domain.repositories.user_repository import UserRepository

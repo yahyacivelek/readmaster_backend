@@ -1,5 +1,5 @@
 import uuid
-import datetime
+from datetime import datetime, timezone
 from sqlalchemy import (
     Column, String, Text, Enum as SQLAlchemyEnum, DateTime, ForeignKey, Integer, Boolean, Float, Date, Table # Removed JSONB
 )
@@ -26,7 +26,7 @@ StudentsClassesAssociation = Table(
     'Students_Classes', Base.metadata,
     Column('student_id', PG_UUID(as_uuid=True), ForeignKey('Users.user_id'), primary_key=True),
     Column('class_id', PG_UUID(as_uuid=True), ForeignKey('Classes.class_id'), primary_key=True),
-    Column('joined_at', DateTime, default=datetime.datetime.utcnow)
+    Column('joined_at', DateTime(timezone=True), default=datetime.now(timezone.utc))
 )
 
 ParentsStudentsAssociation = Table(
@@ -34,14 +34,14 @@ ParentsStudentsAssociation = Table(
     Column('parent_id', PG_UUID(as_uuid=True), ForeignKey('Users.user_id'), primary_key=True),
     Column('student_id', PG_UUID(as_uuid=True), ForeignKey('Users.user_id'), primary_key=True),
     Column('relationship_type', String),
-    Column('linked_at', DateTime, default=datetime.datetime.utcnow)
+    Column('linked_at', DateTime(timezone=True), default=datetime.now(timezone.utc))
 )
 
 TeachersClassesAssociation = Table(
     'Teachers_Classes', Base.metadata,
     Column('teacher_id', PG_UUID(as_uuid=True), ForeignKey('Users.user_id'), primary_key=True),
     Column('class_id', PG_UUID(as_uuid=True), ForeignKey('Classes.class_id'), primary_key=True),
-    Column('assigned_at', DateTime, default=datetime.datetime.utcnow)
+    Column('assigned_at', DateTime(timezone=True), default=datetime.now(timezone.utc))
 )
 
 
@@ -53,8 +53,8 @@ class UserModel(Base):
     first_name = Column(String)
     last_name = Column(String)
     role = Column(SQLAlchemyEnum(*USER_ROLE_ENUM_VALUES, name='user_role_enum_sqlalchemy', create_type=False), nullable=False)
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), default=datetime.now(timezone.utc))
+    updated_at = Column(DateTime(timezone=True), default=datetime.now(timezone.utc), onupdate=datetime.now(timezone.utc))
     preferred_language = Column(String, default='en')
 
     # Relationships defined via association tables for roles
@@ -88,8 +88,9 @@ class ClassModel(Base):
     class_name = Column(String, nullable=False)
     grade_level = Column(String)
     created_by_teacher_id = Column(PG_UUID(as_uuid=True), ForeignKey('Users.user_id'))
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), default=datetime.now(timezone.utc))
+    created_at = Column(DateTime, default=datetime.now(timezone.utc))
+    updated_at = Column(DateTime, default=datetime.now(timezone.utc), onupdate=datetime.now(timezone.utc))
 
     creator_teacher = relationship("UserModel", foreign_keys=[created_by_teacher_id], back_populates="classes_created")
     students = relationship("UserModel", secondary=StudentsClassesAssociation, back_populates="classes_enrolled")
@@ -107,8 +108,8 @@ class ReadingModel(Base):
     language = Column(String, default='en')
     genre = Column(String)
     added_by_admin_id = Column(PG_UUID(as_uuid=True), ForeignKey('Users.user_id')) # Assuming only Admins add readings as per ERD
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
     added_by_admin = relationship("UserModel", foreign_keys=[added_by_admin_id], back_populates="readings_added") # Corrected foreign_keys
     assessments = relationship("AssessmentModel", back_populates="reading", lazy="dynamic")
@@ -124,9 +125,9 @@ class AssessmentModel(Base):
     audio_file_url = Column(String)
     audio_duration_seconds = Column(Integer)
     status = Column(SQLAlchemyEnum(*ASSESSMENT_STATUS_ENUM_VALUES, name='assessment_status_enum_sqlalchemy', create_type=False), nullable=False, default='pending_audio', index=True)
-    assessment_date = Column(DateTime, default=datetime.datetime.utcnow, index=True)
+    assessment_date = Column(DateTime, default=datetime.now(timezone.utc), index=True)
     ai_raw_speech_to_text = Column(Text)
-    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.now(timezone.utc), onupdate=datetime.now(timezone.utc))
 
     student = relationship("UserModel", foreign_keys=[student_id], back_populates="assessments_taken")
     reading = relationship("ReadingModel", back_populates="assessments")
@@ -142,7 +143,7 @@ class AssessmentResultModel(Base):
     assessment_id = Column(PG_UUID(as_uuid=True), ForeignKey('Assessments.assessment_id'), nullable=False, unique=True) # Unique for 1-to-1
     analysis_data = Column(JSONB) # For fluency, pronunciation details
     comprehension_score = Column(Float) # Derived from quiz answers
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.now(timezone.utc))
 
     assessment = relationship("AssessmentModel", back_populates="result")
 
@@ -156,7 +157,7 @@ class QuizQuestionModel(Base):
     correct_option_id = Column(String, nullable=False)
     language = Column(String, default='en')
     added_by_admin_id = Column(PG_UUID(as_uuid=True), ForeignKey('Users.user_id')) # Assuming Admin role
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
     reading = relationship("ReadingModel", back_populates="quiz_questions")
     added_by_admin = relationship("UserModel", foreign_keys=[added_by_admin_id], back_populates="quiz_questions_created") # Corrected foreign_keys
@@ -171,7 +172,7 @@ class StudentQuizAnswerModel(Base):
     student_id = Column(PG_UUID(as_uuid=True), ForeignKey('Users.user_id'), nullable=False) # Denormalized for easier querying
     selected_option_id = Column(String, nullable=False)
     is_correct = Column(Boolean)
-    answered_at = Column(DateTime, default=datetime.datetime.utcnow)
+    answered_at = Column(DateTime, default=datetime.now(timezone.utc))
 
     assessment = relationship("AssessmentModel", back_populates="quiz_answers")
     question = relationship("QuizQuestionModel", back_populates="student_answers")
@@ -186,7 +187,7 @@ class ProgressTrackingModel(Base):
     value = Column(Float, nullable=False)
     period_start_date = Column(Date)
     period_end_date = Column(Date)
-    last_calculated_at = Column(DateTime, default=datetime.datetime.utcnow)
+    last_calculated_at = Column(DateTime, default=datetime.now(timezone.utc))
 
     student = relationship("UserModel", back_populates="progress_tracking_entries")
 
@@ -199,7 +200,7 @@ class NotificationModel(Base):
     message = Column(Text, nullable=False)
     related_entity_id = Column(PG_UUID(as_uuid=True), nullable=True) # e.g., assessment_id, class_id
     is_read = Column(Boolean, default=False, nullable=False)
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.now(timezone.utc))
 
     user = relationship("UserModel", back_populates="notifications")
 
@@ -210,7 +211,7 @@ class SystemConfigurationModel(Base):
     key = Column(String, primary_key=True, index=True) # e.g., "DEFAULT_READING_LANGUAGE", "MAX_ASSESSMENTS_PER_DAY"
     value = Column(JSONB, nullable=False) # Store various types of config values (string, number, bool, dict, list)
     description = Column(Text, nullable=True)
-    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
     def __repr__(self):
         return f"<SystemConfigurationModel(key='{self.key}', value='{self.value}')>"

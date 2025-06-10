@@ -5,11 +5,11 @@ from uuid import uuid4, UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime, timezone # Ensure timezone is imported
 
-from src.readmaster_ai.domain.entities.user import User as DomainUser
-from src.readmaster_ai.domain.value_objects.common_enums import UserRole # Correct import for UserRole enum
-from src.readmaster_ai.infrastructure.database.repositories.user_repository_impl import UserRepositoryImpl
-from src.readmaster_ai.infrastructure.database.models import UserModel # For direct verification if needed
-from src.readmaster_ai.shared.exceptions import NotFoundException # For testing link_parent_to_student
+from readmaster_ai.domain.entities.user import DomainUser
+from readmaster_ai.domain.value_objects.common_enums import UserRole # Correct import for UserRole enum
+from readmaster_ai.infrastructure.database.repositories.user_repository_impl import UserRepositoryImpl
+from readmaster_ai.infrastructure.database.models import UserModel # For direct verification if needed
+from readmaster_ai.shared.exceptions import NotFoundException # For testing link_parent_to_student
 
 # Fixtures from conftest.py like db_session and test_user will be automatically available.
 
@@ -134,7 +134,7 @@ async def test_link_parent_to_non_student_raises_error(db_session: AsyncSession)
     parent = await repo.create(DomainUser(user_id=uuid4(), email="p1.error@example.com", password_hash="p", role=UserRole.PARENT))
     not_a_student = await repo.create(DomainUser(user_id=uuid4(), email="t1.error@example.com", password_hash="p", role=UserRole.TEACHER))
 
-    with pytest.raises(NotFoundException, match=f"Student user {not_a_student.user_id} not found or not a student"):
+    with pytest.raises(NotFoundException, match=f"Student user with ID '{not_a_student.user_id}' not found."):
         await repo.link_parent_to_student(parent.user_id, not_a_student.user_id, "guardian")
 
 @pytest.mark.asyncio
@@ -142,7 +142,7 @@ async def test_link_non_parent_to_student_raises_error(db_session: AsyncSession,
     repo = UserRepositoryImpl(db_session)
     not_a_parent = await repo.create(DomainUser(user_id=uuid4(), email="t2.error@example.com", password_hash="p", role=UserRole.TEACHER))
 
-    with pytest.raises(NotFoundException, match=f"Parent user {not_a_parent.user_id} not found or not a parent"):
+    with pytest.raises(NotFoundException, match=f"Parent user with ID '{not_a_parent.user_id}' not found."):
         await repo.link_parent_to_student(not_a_parent.user_id, test_user.user_id, "guardian")
 
 

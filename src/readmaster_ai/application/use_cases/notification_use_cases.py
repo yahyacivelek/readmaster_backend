@@ -5,7 +5,7 @@ from typing import List, Tuple, Optional
 from uuid import UUID
 
 # Domain Entities and Repositories
-from readmaster_ai.domain.entities.user import User as DomainUser
+from readmaster_ai.domain.entities.user import DomainUser
 from readmaster_ai.domain.entities.notification import Notification as DomainNotification
 from readmaster_ai.domain.repositories.notification_repository import NotificationRepository
 
