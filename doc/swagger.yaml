@@ -1,0 +1,2715 @@
+openapi: 3.1.0
+info:
+  title: Readmaster.ai API
+  description: API for Readmaster.ai, a web-based reading assessment platform.
+  version: 0.1.0
+paths:
+  /api/v1/health:
+    get:
+      tags:
+        - Health
+      summary: Health Check
+      operationId: health_check_api_v1_health_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+  /api/v1/users/register:
+    post:
+      tags:
+        - Users
+      summary: Register User
+      description: Registers a new user in the system.
+      operationId: register_user_api_v1_users_register_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserCreateRequest'
+        required: true
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/users/me:
+    get:
+      tags:
+        - Users
+      summary: Read Users Me
+      description: Get current authenticated user's details.
+      operationId: read_users_me_api_v1_users_me_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+      security:
+        - OAuth2PasswordBearer: []
+    put:
+      tags:
+        - Users
+      summary: Update Users Me
+      description: Update current authenticated user's profile.
+      operationId: update_users_me_api_v1_users_me_put
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserUpdateRequest'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+        - OAuth2PasswordBearer: []
+  /api/v1/auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: Login For Access Token
+      description: Handles user login and issues access and refresh tokens upon successful authentication.
+      operationId: login_for_access_token_api_v1_auth_login_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/admin/readings:
+    post:
+      tags:
+        - Admin Management
+      summary: Admin Create Reading
+      operationId: admin_create_reading_api_v1_admin_readings_post
+      security:
+        - OAuth2PasswordBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReadingCreateDTO'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReadingResponseDTO'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    get:
+      tags:
+        - Admin Management
+      summary: Admin List Readings
+      operationId: admin_list_readings_api_v1_admin_readings_get
+      security:
+        - OAuth2PasswordBearer: []
+      parameters:
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+            title: Page
+        - name: size
+          in: query
+          required: false
+          schema:
+            type: integer
+            maximum: 100
+            minimum: 1
+            default: 20
+            title: Size
+        - name: language
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - type: string
+              - type: 'null'
+            title: Language
+        - name: difficulty
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - $ref: '#/components/schemas/DifficultyLevel'
+              - type: 'null'
+            title: Difficulty
+        - name: age_category
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - type: string
+              - type: 'null'
+            title: Age Category
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedResponse_ReadingResponseDTO_'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/admin/readings/{reading_id}:
+    get:
+      tags:
+        - Admin Management
+      summary: Admin Get Reading With Questions
+      operationId: admin_get_reading_with_questions_api_v1_admin_readings__reading_id__get
+      security:
+        - OAuth2PasswordBearer: []
+      parameters:
+        - name: reading_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            description: The ID of the reading to retrieve
+            title: Reading Id
+          description: The ID of the reading to retrieve
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReadingResponseDTO'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    put:
+      tags:
+        - Admin Management
+      summary: Admin Update Reading
+      operationId: admin_update_reading_api_v1_admin_readings__reading_id__put
+      security:
+        - OAuth2PasswordBearer: []
+      parameters:
+        - name: reading_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Reading Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReadingUpdateDTO'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReadingResponseDTO'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    delete:
+      tags:
+        - Admin Management
+      summary: Admin Delete Reading
+      operationId: admin_delete_reading_api_v1_admin_readings__reading_id__delete
+      security:
+        - OAuth2PasswordBearer: []
+      parameters:
+        - name: reading_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Reading Id
+      responses:
+        '204':
+          description: Successful Response
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/admin/questions:
+    post:
+      tags:
+        - Admin Management
+      summary: Admin Create Quiz Question
+      operationId: admin_create_quiz_question_api_v1_admin_questions_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QuizQuestionCreateDTO'
+        required: true
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuizQuestionResponseDTO'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+        - OAuth2PasswordBearer: []
+  /api/v1/admin/readings/{reading_id}/questions:
+    get:
+      tags:
+        - Admin Management
+      summary: Admin List Quiz Questions For Reading
+      operationId: admin_list_quiz_questions_for_reading_api_v1_admin_readings__reading_id__questions_get
+      security:
+        - OAuth2PasswordBearer: []
+      parameters:
+        - name: reading_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Reading Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/QuizQuestionResponseDTO'
+                title: Response Admin List Quiz Questions For Reading Api V1 Admin Readings  Reading Id  Questions Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/admin/questions/{question_id}:
+    get:
+      tags:
+        - Admin Management
+      summary: Admin Get Quiz Question
+      operationId: admin_get_quiz_question_api_v1_admin_questions__question_id__get
+      security:
+        - OAuth2PasswordBearer: []
+      parameters:
+        - name: question_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Question Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuizQuestionResponseDTO'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    put:
+      tags:
+        - Admin Management
+      summary: Admin Update Quiz Question
+      operationId: admin_update_quiz_question_api_v1_admin_questions__question_id__put
+      security:
+        - OAuth2PasswordBearer: []
+      parameters:
+        - name: question_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Question Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QuizQuestionUpdateDTO'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuizQuestionResponseDTO'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    delete:
+      tags:
+        - Admin Management
+      summary: Admin Delete Quiz Question
+      operationId: admin_delete_quiz_question_api_v1_admin_questions__question_id__delete
+      security:
+        - OAuth2PasswordBearer: []
+      parameters:
+        - name: question_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Question Id
+      responses:
+        '204':
+          description: Successful Response
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/admin/system-configurations:
+    get:
+      tags:
+        - Admin Management
+        - Admin - System Configuration
+      summary: Admin List System Configurations
+      operationId: admin_list_system_configurations_api_v1_admin_system_configurations_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/SystemConfigResponseDTO'
+                type: array
+                title: Response Admin List System Configurations Api V1 Admin System Configurations Get
+      security:
+        - OAuth2PasswordBearer: []
+  /api/v1/admin/system-configurations/{config_key}:
+    get:
+      tags:
+        - Admin Management
+        - Admin - System Configuration
+      summary: Admin Get System Configuration
+      operationId: admin_get_system_configuration_api_v1_admin_system_configurations__config_key__get
+      security:
+        - OAuth2PasswordBearer: []
+      parameters:
+        - name: config_key
+          in: path
+          required: true
+          schema:
+            type: string
+            description: The key of the configuration to retrieve
+            title: Config Key
+          description: The key of the configuration to retrieve
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SystemConfigResponseDTO'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    put:
+      tags:
+        - Admin Management
+        - Admin - System Configuration
+      summary: Admin Update System Configuration
+      operationId: admin_update_system_configuration_api_v1_admin_system_configurations__config_key__put
+      security:
+        - OAuth2PasswordBearer: []
+      parameters:
+        - name: config_key
+          in: path
+          required: true
+          schema:
+            type: string
+            description: The key of the configuration to update or create
+            title: Config Key
+          description: The key of the configuration to update or create
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SystemConfigUpdateDTO'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SystemConfigResponseDTO'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/readings:
+    get:
+      tags:
+        - Readings (Student View)
+      summary: List Available Readings
+      description: |-
+        Lists available reading materials for students, with pagination and filters.
+        Quiz questions associated with each reading are also listed, but without correct answers.
+      operationId: list_available_readings_api_v1_readings_get
+      security:
+        - OAuth2PasswordBearer: []
+      parameters:
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            description: Page number for pagination.
+            default: 1
+            title: Page
+          description: Page number for pagination.
+        - name: size
+          in: query
+          required: false
+          schema:
+            type: integer
+            maximum: 100
+            minimum: 1
+            description: Number of items per page.
+            default: 20
+            title: Size
+          description: Number of items per page.
+        - name: language
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - type: string
+              - type: 'null'
+            description: Filter by language code (e.g., 'en').
+            title: Language
+          description: Filter by language code (e.g., 'en').
+        - name: difficulty
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - $ref: '#/components/schemas/DifficultyLevel'
+              - type: 'null'
+            description: Filter by difficulty level.
+            title: Difficulty
+          description: Filter by difficulty level.
+        - name: age_category
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - type: string
+              - type: 'null'
+            description: Filter by age category.
+            title: Age Category
+          description: Filter by age category.
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedResponse_ReadingResponseDTO_'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/readings/{reading_id}:
+    get:
+      tags:
+        - Readings (Student View)
+      summary: Get Reading Details
+      description: Retrieves details of a specific reading material, including its quiz questions (without correct answers).
+      operationId: get_reading_details_api_v1_readings__reading_id__get
+      security:
+        - OAuth2PasswordBearer: []
+      parameters:
+        - name: reading_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            description: The ID of the reading to retrieve.
+            title: Reading Id
+          description: The ID of the reading to retrieve.
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReadingResponseDTO'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/assessments:
+    post:
+      tags:
+        - Assessments (Student)
+      summary: Start New Assessment
+      description: |-
+        Allows a student to start a new assessment for a specified reading material.
+        This endpoint creates an assessment record with a 'pending_audio' status.
+      operationId: start_new_assessment_api_v1_assessments_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StartAssessmentRequestDTO'
+        required: true
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssessmentResponseDTO'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+        - OAuth2PasswordBearer: []
+  /api/v1/assessments/{assessment_id}/request-upload-url:
+    post:
+      tags:
+        - Assessments (Student)
+      summary: Request Assessment Audio Upload Url
+      description: |-
+        Requests a presigned URL for uploading the assessment audio file.
+        The client should use this URL to PUT the audio file directly to the storage.
+      operationId: request_assessment_audio_upload_url_api_v1_assessments__assessment_id__request_upload_url_post
+      security:
+        - OAuth2PasswordBearer: []
+      parameters:
+        - name: assessment_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            description: The ID of the assessment for which to request an upload URL.
+            title: Assessment Id
+          description: The ID of the assessment for which to request an upload URL.
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RequestUploadURLResponseDTO'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/assessments/{assessment_id}/confirm-upload:
+    post:
+      tags:
+        - Assessments (Student)
+      summary: Confirm Assessment Audio Upload
+      description: |-
+        Confirms that the audio file for an assessment has been successfully uploaded
+        by the client to the URL provided by /request-upload-url.
+        This triggers the backend to update the assessment status and dispatch an AI processing task.
+      operationId: confirm_assessment_audio_upload_api_v1_assessments__assessment_id__confirm_upload_post
+      security:
+        - OAuth2PasswordBearer: []
+      parameters:
+        - name: assessment_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            description: The ID of the assessment for which upload is being confirmed.
+            title: Assessment Id
+          description: The ID of the assessment for which upload is being confirmed.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConfirmUploadRequestDTO'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConfirmUploadResponseDTO'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/assessments/{assessment_id}/quiz-answers:
+    post:
+      tags:
+        - Assessments (Student)
+      summary: Submit Quiz Answers For Assessment
+      description: |-
+        Allows a student to submit their answers to the quiz associated with an assessment.
+        Calculates and stores the comprehension score.
+      operationId: submit_quiz_answers_for_assessment_api_v1_assessments__assessment_id__quiz_answers_post
+      security:
+        - OAuth2PasswordBearer: []
+      parameters:
+        - name: assessment_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            description: The ID of the assessment for which answers are being submitted.
+            title: Assessment Id
+          description: The ID of the assessment for which answers are being submitted.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QuizSubmissionRequestDTO'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuizSubmissionResponseDTO'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/assessments/{assessment_id}/results:
+    get:
+      tags:
+        - Assessments (Student)
+      summary: Get Assessment Results
+      description: |-
+        Retrieves the detailed results of a specific assessment for the authenticated student.
+        This includes AI analysis data, comprehension score, and a review of submitted quiz answers.
+      operationId: get_assessment_results_api_v1_assessments__assessment_id__results_get
+      security:
+        - OAuth2PasswordBearer: []
+      parameters:
+        - name: assessment_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            description: The ID of the assessment for which to retrieve results.
+            title: Assessment Id
+          description: The ID of the assessment for which to retrieve results.
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssessmentResultDetailDTO'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/teacher/classes:
+    post:
+      tags:
+        - Teacher - Class, Assignment & Progress
+      summary: Teacher Create Class
+      operationId: teacher_create_class_api_v1_teacher_classes_post
+      security:
+        - OAuth2PasswordBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClassCreateDTO'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClassResponseDTO'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    get:
+      tags:
+        - Teacher - Class, Assignment & Progress
+      summary: Teacher List My Classes
+      operationId: teacher_list_my_classes_api_v1_teacher_classes_get
+      security:
+        - OAuth2PasswordBearer: []
+      parameters:
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+            title: Page
+        - name: size
+          in: query
+          required: false
+          schema:
+            type: integer
+            maximum: 100
+            minimum: 1
+            default: 20
+            title: Size
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedResponse_ClassResponseDTO_'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/teacher/classes/{class_id}:
+    get:
+      tags:
+        - Teacher - Class, Assignment & Progress
+      summary: Teacher Get Class Details
+      operationId: teacher_get_class_details_api_v1_teacher_classes__class_id__get
+      security:
+        - OAuth2PasswordBearer: []
+      parameters:
+        - name: class_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Class Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClassResponseDTO'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    put:
+      tags:
+        - Teacher - Class, Assignment & Progress
+      summary: Teacher Update Class Details
+      operationId: teacher_update_class_details_api_v1_teacher_classes__class_id__put
+      security:
+        - OAuth2PasswordBearer: []
+      parameters:
+        - name: class_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Class Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClassUpdateDTO'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClassResponseDTO'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    delete:
+      tags:
+        - Teacher - Class, Assignment & Progress
+      summary: Teacher Delete Class
+      operationId: teacher_delete_class_api_v1_teacher_classes__class_id__delete
+      security:
+        - OAuth2PasswordBearer: []
+      parameters:
+        - name: class_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Class Id
+      responses:
+        '204':
+          description: Successful Response
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/teacher/classes/{class_id}/students:
+    post:
+      tags:
+        - Teacher - Class, Assignment & Progress
+      summary: Teacher Add Student To Class
+      operationId: teacher_add_student_to_class_api_v1_teacher_classes__class_id__students_post
+      security:
+        - OAuth2PasswordBearer: []
+      parameters:
+        - name: class_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Class Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddStudentToClassRequestDTO'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClassResponseDTO'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    get:
+      tags:
+        - Teacher - Class, Assignment & Progress
+      summary: Teacher List Students In Class
+      operationId: teacher_list_students_in_class_api_v1_teacher_classes__class_id__students_get
+      security:
+        - OAuth2PasswordBearer: []
+      parameters:
+        - name: class_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Class Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserResponseDTO'
+                title: Response Teacher List Students In Class Api V1 Teacher Classes  Class Id  Students Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/teacher/classes/{class_id}/students/{student_id}:
+    delete:
+      tags:
+        - Teacher - Class, Assignment & Progress
+      summary: Teacher Remove Student From Class
+      operationId: teacher_remove_student_from_class_api_v1_teacher_classes__class_id__students__student_id__delete
+      security:
+        - OAuth2PasswordBearer: []
+      parameters:
+        - name: class_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Class Id
+        - name: student_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Student Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClassResponseDTO'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/teacher/assignments/readings:
+    post:
+      tags:
+        - Teacher - Class, Assignment & Progress
+      summary: Teacher Assign Reading To Students
+      operationId: teacher_assign_reading_to_students_api_v1_teacher_assignments_readings_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssignReadingRequestDTO'
+        required: true
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssignmentResponseDTO'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+        - OAuth2PasswordBearer: []
+  /api/v1/teacher/classes/{class_id}/progress-report:
+    get:
+      tags:
+        - Teacher - Class, Assignment & Progress
+      summary: Teacher Get Class Progress Report
+      operationId: teacher_get_class_progress_report_api_v1_teacher_classes__class_id__progress_report_get
+      security:
+        - OAuth2PasswordBearer: []
+      parameters:
+        - name: class_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Class Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClassProgressReportDTO'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/teacher/students/{student_id}/progress-summary:
+    get:
+      tags:
+        - Teacher - Class, Assignment & Progress
+      summary: Teacher Get Student Progress Summary
+      operationId: teacher_get_student_progress_summary_api_v1_teacher_students__student_id__progress_summary_get
+      security:
+        - OAuth2PasswordBearer: []
+      parameters:
+        - name: student_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Student Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StudentProgressSummaryDTO'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/parent/my-children:
+    get:
+      tags:
+        - Parent - Child Monitoring
+      summary: Parent List My Children
+      description: Lists all children linked to the authenticated parent.
+      operationId: parent_list_my_children_api_v1_parent_my_children_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/UserResponseDTO'
+                type: array
+                title: Response Parent List My Children Api V1 Parent My Children Get
+      security:
+        - OAuth2PasswordBearer: []
+  /api/v1/parent/children/{child_student_id}/progress:
+    get:
+      tags:
+        - Parent - Child Monitoring
+      summary: Parent Get Child Progress Summary
+      description: Allows a parent to view the progress summary of one of their linked children.
+      operationId: parent_get_child_progress_summary_api_v1_parent_children__child_student_id__progress_get
+      security:
+        - OAuth2PasswordBearer: []
+      parameters:
+        - name: child_student_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            description: The ID of the child (student) whose progress is to be viewed.
+            title: Child Student Id
+          description: The ID of the child (student) whose progress is to be viewed.
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StudentProgressSummaryDTO'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/parent/children/{child_student_id}/assessments/{assessment_id}/results:
+    get:
+      tags:
+        - Parent - Child Monitoring
+      summary: Parent Get Child Assessment Result Details
+      description: Allows a parent to view detailed results of a specific assessment for one of their linked children.
+      operationId: parent_get_child_assessment_result_details_api_v1_parent_children__child_student_id__assessments__assessment_id__results_get
+      security:
+        - OAuth2PasswordBearer: []
+      parameters:
+        - name: child_student_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            description: The ID of the child (student).
+            title: Child Student Id
+          description: The ID of the child (student).
+        - name: assessment_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            description: The ID of the assessment.
+            title: Assessment Id
+          description: The ID of the assessment.
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssessmentResultDetailDTO'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/notifications:
+    get:
+      tags:
+        - User Notifications
+      summary: List My Notifications
+      description: |-
+        Retrieves a paginated list of notifications for the authenticated user.
+        Can be filtered to show only unread notifications.
+      operationId: list_my_notifications_api_v1_notifications_get
+      security:
+        - OAuth2PasswordBearer: []
+      parameters:
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            description: Page number for pagination.
+            default: 1
+            title: Page
+          description: Page number for pagination.
+        - name: size
+          in: query
+          required: false
+          schema:
+            type: integer
+            maximum: 100
+            minimum: 1
+            description: Number of items per page.
+            default: 20
+            title: Size
+          description: Number of items per page.
+        - name: unread_only
+          in: query
+          required: false
+          schema:
+            type: boolean
+            description: Set to true to fetch only unread notifications.
+            default: false
+            title: Unread Only
+          description: Set to true to fetch only unread notifications.
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedResponse_NotificationResponseDTO_'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/notifications/{notification_id}/read:
+    patch:
+      tags:
+        - User Notifications
+      summary: Mark One Notification As Read
+      description: Marks a specific notification as read for the authenticated user.
+      operationId: mark_one_notification_as_read_api_v1_notifications__notification_id__read_patch
+      security:
+        - OAuth2PasswordBearer: []
+      parameters:
+        - name: notification_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            description: The ID of the notification to mark as read.
+            title: Notification Id
+          description: The ID of the notification to mark as read.
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MarkReadResponseDTO'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/notifications/mark-all-read:
+    post:
+      tags:
+        - User Notifications
+      summary: Mark All My Notifications As Read
+      description: Marks all unread notifications as read for the authenticated user.
+      operationId: mark_all_my_notifications_as_read_api_v1_notifications_mark_all_read_post
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MarkAllReadResponseDTO'
+      security:
+        - OAuth2PasswordBearer: []
+  /:
+    get:
+      tags:
+        - Root
+      summary: Read Root
+      operationId: read_root__get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+components:
+  schemas:
+    AddStudentToClassRequestDTO:
+      properties:
+        student_id:
+          type: string
+          format: uuid
+          title: Student Id
+          description: The ID of the student to be added to the class.
+      type: object
+      required:
+        - student_id
+      title: AddStudentToClassRequestDTO
+      description: DTO for adding a student to a class.
+    AssessmentAttemptSummaryDTO:
+      properties:
+        assessment_id:
+          type: string
+          format: uuid
+          title: Assessment Id
+        reading_title:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Reading Title
+          description: Title of the reading material.
+        assessment_date:
+          type: string
+          format: date-time
+          title: Assessment Date
+        status:
+          type: string
+          title: Status
+          description: Status of the assessment, e.g., COMPLETED, PENDING_AUDIO.
+        comprehension_score:
+          anyOf:
+            - type: number
+            - type: 'null'
+          title: Comprehension Score
+          description: Comprehension score if available (0-100).
+        fluency_score:
+          anyOf:
+            - type: number
+            - type: 'null'
+          title: Fluency Score
+          description: Overall fluency score from AI analysis, if available.
+      type: object
+      required:
+        - assessment_id
+        - assessment_date
+        - status
+      title: AssessmentAttemptSummaryDTO
+      description: Summary of a single assessment attempt for progress tracking views.
+    AssessmentResponseDTO:
+      properties:
+        assessment_id:
+          type: string
+          format: uuid
+          title: Assessment Id
+        student_id:
+          type: string
+          format: uuid
+          title: Student Id
+        reading_id:
+          type: string
+          format: uuid
+          title: Reading Id
+        status:
+          $ref: '#/components/schemas/AssessmentStatus'
+        assessment_date:
+          type: string
+          format: date-time
+          title: Assessment Date
+        updated_at:
+          type: string
+          format: date-time
+          title: Updated At
+        audio_file_url:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Audio File Url
+        audio_duration:
+          anyOf:
+            - type: integer
+            - type: 'null'
+          title: Audio Duration
+          description: Duration of the audio in seconds.
+        ai_raw_speech_to_text:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Ai Raw Speech To Text
+          description: Raw speech-to-text output from AI processing.
+        assigned_by_teacher_id:
+          anyOf:
+            - type: string
+              format: uuid
+            - type: 'null'
+          title: Assigned By Teacher Id
+      type: object
+      required:
+        - assessment_id
+        - student_id
+        - reading_id
+        - status
+        - assessment_date
+        - updated_at
+      title: AssessmentResponseDTO
+      description: |-
+        Standard DTO for representing an assessment in API responses.
+        This can be used when an assessment is created or retrieved.
+    AssessmentResultDetailDTO:
+      properties:
+        assessment_id:
+          type: string
+          format: uuid
+          title: Assessment Id
+        student_id:
+          type: string
+          format: uuid
+          title: Student Id
+        reading_id:
+          type: string
+          format: uuid
+          title: Reading Id
+        status:
+          $ref: '#/components/schemas/AssessmentStatus'
+        assessment_date:
+          type: string
+          format: date-time
+          title: Assessment Date
+        updated_at:
+          type: string
+          format: date-time
+          title: Updated At
+        audio_file_url:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Audio File Url
+        audio_duration:
+          anyOf:
+            - type: integer
+            - type: 'null'
+          title: Audio Duration
+          description: Duration of the audio in seconds.
+        ai_raw_speech_to_text:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Ai Raw Speech To Text
+          description: Raw speech-to-text output from AI processing.
+        assigned_by_teacher_id:
+          anyOf:
+            - type: string
+              format: uuid
+            - type: 'null'
+          title: Assigned By Teacher Id
+        reading_title:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Reading Title
+          description: Title of the reading material for context.
+        analysis_data:
+          anyOf:
+            - additionalProperties: true
+              type: object
+            - type: 'null'
+          title: Analysis Data
+          description: Detailed AI analysis data (e.g., fluency, pronunciation).
+        comprehension_score:
+          anyOf:
+            - type: number
+            - type: 'null'
+          title: Comprehension Score
+          description: Calculated comprehension score based on quiz answers (0-100).
+        submitted_answers:
+          items:
+            $ref: '#/components/schemas/SubmittedAnswerDetailDTO'
+          type: array
+          title: Submitted Answers
+          description: Detailed list of submitted quiz answers for review.
+          default: []
+      type: object
+      required:
+        - assessment_id
+        - student_id
+        - reading_id
+        - status
+        - assessment_date
+        - updated_at
+      title: AssessmentResultDetailDTO
+      description: |-
+        Comprehensive DTO for displaying detailed assessment results to a student.
+        Inherits common assessment fields from AssessmentResponseBaseDTO.
+    AssessmentStatus:
+      type: string
+      enum:
+        - pending_audio
+        - processing
+        - completed
+        - error
+      title: AssessmentStatus
+    AssignReadingRequestDTO:
+      properties:
+        reading_id:
+          type: string
+          format: uuid
+          title: Reading Id
+          description: The ID of the reading material to assign.
+        student_ids:
+          anyOf:
+            - items:
+                type: string
+                format: uuid
+              type: array
+            - type: 'null'
+          title: Student Ids
+          description: A list of specific student IDs to assign the reading to.
+        class_id:
+          anyOf:
+            - type: string
+              format: uuid
+            - type: 'null'
+          title: Class Id
+          description: The ID of a class to assign the reading to all its students. If provided, student_ids might be ignored or augmented.
+        due_date:
+          anyOf:
+            - type: string
+              format: date
+            - type: 'null'
+          title: Due Date
+          description: Optional due date for the assignment.
+      type: object
+      required:
+        - reading_id
+      title: AssignReadingRequestDTO
+      description: DTO for a teacher to assign a reading to students or a class.
+    AssignmentResponseDTO:
+      properties:
+        message:
+          type: string
+          title: Message
+          default: Reading assigned successfully.
+        created_assessments:
+          items:
+            $ref: '#/components/schemas/CreatedAssignmentInfoDTO'
+          type: array
+          title: Created Assessments
+        skipped_students:
+          anyOf:
+            - items:
+                type: string
+                format: uuid
+              type: array
+            - type: 'null'
+          title: Skipped Students
+          description: List of student IDs for whom assessment creation was skipped (e.g., invalid ID, not a student).
+      type: object
+      title: AssignmentResponseDTO
+      description: DTO for the response after a teacher assigns a reading.
+    ClassCreateDTO:
+      properties:
+        class_name:
+          type: string
+          maxLength: 100
+          minLength: 1
+          title: Class Name
+          description: Name of the class.
+        grade_level:
+          anyOf:
+            - type: string
+              maxLength: 50
+            - type: 'null'
+          title: Grade Level
+          description: Grade level of the class, e.g., 'Grade 5', 'Secondary II'.
+      type: object
+      required:
+        - class_name
+      title: ClassCreateDTO
+      description: |-
+        DTO for creating a new class.
+        'created_by_teacher_id' will be derived from the authenticated teacher user in the use case.
+    ClassProgressReportDTO:
+      properties:
+        class_id:
+          type: string
+          format: uuid
+          title: Class Id
+        class_name:
+          type: string
+          title: Class Name
+        teacher_info:
+          anyOf:
+            - $ref: '#/components/schemas/UserResponseDTO'
+            - type: 'null'
+          description: Information about the class teacher (creator).
+        student_progress_summaries:
+          items:
+            $ref: '#/components/schemas/StudentProgressSummaryDTO'
+          type: array
+          title: Student Progress Summaries
+        class_average_comprehension:
+          anyOf:
+            - type: number
+            - type: 'null'
+          title: Class Average Comprehension
+          description: Average comprehension score for the entire class.
+        class_average_fluency:
+          anyOf:
+            - type: number
+            - type: 'null'
+          title: Class Average Fluency
+          description: Average fluency score for the entire class.
+      type: object
+      required:
+        - class_id
+        - class_name
+      title: ClassProgressReportDTO
+      description: Comprehensive progress report for an entire class.
+    ClassResponseDTO:
+      properties:
+        class_name:
+          type: string
+          maxLength: 100
+          minLength: 1
+          title: Class Name
+          description: Name of the class.
+        grade_level:
+          anyOf:
+            - type: string
+              maxLength: 50
+            - type: 'null'
+          title: Grade Level
+          description: Grade level of the class, e.g., 'Grade 5', 'Secondary II'.
+        class_id:
+          type: string
+          format: uuid
+          title: Class Id
+        created_by_teacher_id:
+          type: string
+          format: uuid
+          title: Created By Teacher Id
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        updated_at:
+          type: string
+          format: date-time
+          title: Updated At
+        students:
+          items:
+            $ref: '#/components/schemas/UserResponseDTO'
+          type: array
+          title: Students
+          description: List of students enrolled in the class.
+          default: []
+      type: object
+      required:
+        - class_name
+        - class_id
+        - created_by_teacher_id
+        - created_at
+        - updated_at
+      title: ClassResponseDTO
+      description: DTO for representing a class in API responses.
+    ClassUpdateDTO:
+      properties:
+        class_name:
+          anyOf:
+            - type: string
+              maxLength: 100
+              minLength: 1
+            - type: 'null'
+          title: Class Name
+        grade_level:
+          anyOf:
+            - type: string
+              maxLength: 50
+            - type: 'null'
+          title: Grade Level
+      type: object
+      title: ClassUpdateDTO
+      description: DTO for updating an existing class. All fields are optional.
+    ConfirmUploadRequestDTO:
+      properties:
+        blob_name:
+          type: string
+          title: Blob Name
+          description: The unique blob name (path in storage) of the uploaded file.
+      type: object
+      required:
+        - blob_name
+      title: ConfirmUploadRequestDTO
+      description: DTO for confirming that an audio file has been successfully uploaded to storage.
+    ConfirmUploadResponseDTO:
+      properties:
+        assessment_id:
+          type: string
+          format: uuid
+          title: Assessment Id
+        status:
+          $ref: '#/components/schemas/AssessmentStatus'
+        message:
+          type: string
+          title: Message
+      type: object
+      required:
+        - assessment_id
+        - status
+        - message
+      title: ConfirmUploadResponseDTO
+      description: DTO for the response after confirming an upload and initiating processing.
+    CreatedAssignmentInfoDTO:
+      properties:
+        assessment_id:
+          type: string
+          format: uuid
+          title: Assessment Id
+        student_id:
+          type: string
+          format: uuid
+          title: Student Id
+        reading_id:
+          type: string
+          format: uuid
+          title: Reading Id
+        status:
+          $ref: '#/components/schemas/AssessmentStatus'
+      type: object
+      required:
+        - assessment_id
+        - student_id
+        - reading_id
+        - status
+      title: CreatedAssignmentInfoDTO
+      description: DTO providing information about a single assessment created as part of an assignment.
+    DifficultyLevel:
+      type: string
+      enum:
+        - beginner
+        - intermediate
+        - advanced
+      title: DifficultyLevel
+    HTTPValidationError:
+      properties:
+        detail:
+          items:
+            $ref: '#/components/schemas/ValidationError'
+          type: array
+          title: Detail
+      type: object
+      title: HTTPValidationError
+    LoginRequest:
+      properties:
+        email:
+          type: string
+          format: email
+          title: Email
+        password:
+          type: string
+          title: Password
+      type: object
+      required:
+        - email
+        - password
+      title: LoginRequest
+      description: Schema for user login request. Requires email and password.
+    MarkAllReadResponseDTO:
+      properties:
+        notifications_marked_read:
+          type: integer
+          title: Notifications Marked Read
+          description: The number of notifications that were marked as read.
+        message:
+          type: string
+          title: Message
+          default: All unread notifications marked as read.
+      type: object
+      required:
+        - notifications_marked_read
+      title: MarkAllReadResponseDTO
+      description: DTO for the response when all unread notifications for a user are marked as read.
+    MarkReadResponseDTO:
+      properties:
+        notification:
+          $ref: '#/components/schemas/NotificationResponseDTO'
+      type: object
+      required:
+        - notification
+      title: MarkReadResponseDTO
+      description: DTO for the response when a single notification is marked as read.
+    NotificationResponseDTO:
+      properties:
+        notification_id:
+          type: string
+          format: uuid
+          title: Notification Id
+        user_id:
+          type: string
+          format: uuid
+          title: User Id
+        type:
+          $ref: '#/components/schemas/NotificationType'
+        message:
+          type: string
+          title: Message
+        related_entity_id:
+          anyOf:
+            - type: string
+              format: uuid
+            - type: 'null'
+          title: Related Entity Id
+          description: ID of an entity related to the notification, e.g., assessment_id.
+        is_read:
+          type: boolean
+          title: Is Read
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+      type: object
+      required:
+        - notification_id
+        - user_id
+        - type
+        - message
+        - is_read
+        - created_at
+      title: NotificationResponseDTO
+      description: DTO for representing a notification in API responses.
+    NotificationType:
+      type: string
+      enum:
+        - assignment
+        - result
+        - feedback
+        - system
+      title: NotificationType
+    PaginatedResponse_ClassResponseDTO_:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/ClassResponseDTO'
+          type: array
+          title: Items
+        total:
+          type: integer
+          title: Total
+        page:
+          type: integer
+          minimum: 1
+          title: Page
+        size:
+          type: integer
+          minimum: 1
+          title: Size
+      type: object
+      required:
+        - items
+        - total
+        - page
+        - size
+      title: PaginatedResponse[ClassResponseDTO]
+    PaginatedResponse_NotificationResponseDTO_:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/NotificationResponseDTO'
+          type: array
+          title: Items
+        total:
+          type: integer
+          title: Total
+        page:
+          type: integer
+          minimum: 1
+          title: Page
+        size:
+          type: integer
+          minimum: 1
+          title: Size
+      type: object
+      required:
+        - items
+        - total
+        - page
+        - size
+      title: PaginatedResponse[NotificationResponseDTO]
+    PaginatedResponse_ReadingResponseDTO_:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/ReadingResponseDTO'
+          type: array
+          title: Items
+        total:
+          type: integer
+          title: Total
+        page:
+          type: integer
+          minimum: 1
+          title: Page
+        size:
+          type: integer
+          minimum: 1
+          title: Size
+      type: object
+      required:
+        - items
+        - total
+        - page
+        - size
+      title: PaginatedResponse[ReadingResponseDTO]
+    QuizAnswerDTO:
+      properties:
+        question_id:
+          type: string
+          format: uuid
+          title: Question Id
+          description: The ID of the quiz question being answered.
+        selected_option_id:
+          type: string
+          title: Selected Option Id
+          description: The ID of the option selected by the student.
+      type: object
+      required:
+        - question_id
+        - selected_option_id
+      title: QuizAnswerDTO
+      description: DTO representing a single answer to a quiz question.
+    QuizQuestionCreateDTO:
+      properties:
+        question_text:
+          type: string
+          minLength: 1
+          title: Question Text
+          description: The text of the quiz question.
+        options:
+          additionalProperties:
+            type: string
+          type: object
+          title: Options
+          description: 'Key-value pairs for options, e.g., {"A": "Option Text A", "B": "Option Text B"}.'
+        correct_option_id:
+          type: string
+          title: Correct Option Id
+          description: The key corresponding to the correct option in the options dictionary (e.g., "A").
+        language:
+          type: string
+          maxLength: 10
+          title: Language
+          description: Language code for the question.
+          default: en
+        reading_id:
+          type: string
+          format: uuid
+          title: Reading Id
+          description: The ID of the reading this question belongs to.
+      type: object
+      required:
+        - question_text
+        - options
+        - correct_option_id
+        - reading_id
+      title: QuizQuestionCreateDTO
+      description: DTO for creating a new quiz question. Requires associating with a reading_id.
+    QuizQuestionResponseDTO:
+      properties:
+        question_text:
+          type: string
+          minLength: 1
+          title: Question Text
+          description: The text of the quiz question.
+        options:
+          additionalProperties:
+            type: string
+          type: object
+          title: Options
+          description: 'Key-value pairs for options, e.g., {"A": "Option Text A", "B": "Option Text B"}.'
+        correct_option_id:
+          type: string
+          title: Correct Option Id
+          description: The key corresponding to the correct option in the options dictionary (e.g., "A").
+        language:
+          type: string
+          maxLength: 10
+          title: Language
+          description: Language code for the question.
+          default: en
+        question_id:
+          type: string
+          format: uuid
+          title: Question Id
+        reading_id:
+          type: string
+          format: uuid
+          title: Reading Id
+        added_by_admin_id:
+          anyOf:
+            - type: string
+              format: uuid
+            - type: 'null'
+          title: Added By Admin Id
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+      type: object
+      required:
+        - question_text
+        - options
+        - correct_option_id
+        - question_id
+        - reading_id
+        - added_by_admin_id
+        - created_at
+      title: QuizQuestionResponseDTO
+      description: DTO for representing a quiz question in API responses.
+    QuizQuestionUpdateDTO:
+      properties:
+        question_text:
+          anyOf:
+            - type: string
+              minLength: 1
+            - type: 'null'
+          title: Question Text
+        options:
+          anyOf:
+            - additionalProperties:
+                type: string
+              type: object
+            - type: 'null'
+          title: Options
+          description: Key-value pairs for options.
+        correct_option_id:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Correct Option Id
+          description: The key of the correct option.
+        language:
+          anyOf:
+            - type: string
+              maxLength: 10
+            - type: 'null'
+          title: Language
+      type: object
+      title: QuizQuestionUpdateDTO
+      description: DTO for updating an existing quiz question. All fields are optional.
+    QuizSubmissionRequestDTO:
+      properties:
+        answers:
+          items:
+            $ref: '#/components/schemas/QuizAnswerDTO'
+          type: array
+          title: Answers
+          description: A list of answers submitted by the student.
+      type: object
+      required:
+        - answers
+      title: QuizSubmissionRequestDTO
+      description: DTO for submitting a list of quiz answers for an assessment.
+    QuizSubmissionResponseDTO:
+      properties:
+        assessment_id:
+          type: string
+          format: uuid
+          title: Assessment Id
+        comprehension_score:
+          type: number
+          title: Comprehension Score
+          description: The calculated comprehension score (0.0 to 100.0).
+        total_questions:
+          type: integer
+          title: Total Questions
+          description: Total number of questions answered.
+        correct_answers:
+          type: integer
+          title: Correct Answers
+          description: Number of correctly answered questions.
+        message:
+          type: string
+          title: Message
+          default: Quiz answers submitted successfully.
+      type: object
+      required:
+        - assessment_id
+        - comprehension_score
+        - total_questions
+        - correct_answers
+      title: QuizSubmissionResponseDTO
+      description: DTO for the response after submitting quiz answers.
+    ReadingCreateDTO:
+      properties:
+        title:
+          type: string
+          maxLength: 255
+          minLength: 1
+          title: Title
+          description: Title of the reading material.
+        content_text:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Content Text
+          description: Text content of the reading material.
+        content_image_url:
+          anyOf:
+            - type: string
+              maxLength: 2083
+              minLength: 1
+              format: uri
+            - type: 'null'
+          title: Content Image Url
+          description: URL to an image related to the content.
+        age_category:
+          anyOf:
+            - type: string
+              maxLength: 50
+            - type: 'null'
+          title: Age Category
+          description: Target age category, e.g., '6-8 years'.
+        difficulty:
+          anyOf:
+            - $ref: '#/components/schemas/DifficultyLevel'
+            - type: 'null'
+          description: Difficulty level of the reading.
+        language:
+          type: string
+          maxLength: 10
+          title: Language
+          description: Language code, e.g., 'en', 'es'.
+          default: en
+        genre:
+          anyOf:
+            - type: string
+              maxLength: 100
+            - type: 'null'
+          title: Genre
+          description: Genre of the reading material.
+      type: object
+      required:
+        - title
+      title: ReadingCreateDTO
+      description: |-
+        DTO for creating a new reading material.
+        'added_by_admin_id' will be set by the use case based on the authenticated admin user.
+    ReadingResponseDTO:
+      properties:
+        title:
+          type: string
+          maxLength: 255
+          minLength: 1
+          title: Title
+          description: Title of the reading material.
+        content_text:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Content Text
+          description: Text content of the reading material.
+        content_image_url:
+          anyOf:
+            - type: string
+              maxLength: 2083
+              minLength: 1
+              format: uri
+            - type: 'null'
+          title: Content Image Url
+          description: URL to an image related to the content.
+        age_category:
+          anyOf:
+            - type: string
+              maxLength: 50
+            - type: 'null'
+          title: Age Category
+          description: Target age category, e.g., '6-8 years'.
+        difficulty:
+          anyOf:
+            - $ref: '#/components/schemas/DifficultyLevel'
+            - type: 'null'
+          description: Difficulty level of the reading.
+        language:
+          type: string
+          maxLength: 10
+          title: Language
+          description: Language code, e.g., 'en', 'es'.
+          default: en
+        genre:
+          anyOf:
+            - type: string
+              maxLength: 100
+            - type: 'null'
+          title: Genre
+          description: Genre of the reading material.
+        reading_id:
+          type: string
+          format: uuid
+          title: Reading Id
+        added_by_admin_id:
+          anyOf:
+            - type: string
+              format: uuid
+            - type: 'null'
+          title: Added By Admin Id
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        updated_at:
+          type: string
+          format: date-time
+          title: Updated At
+        questions:
+          items:
+            $ref: '#/components/schemas/StudentQuizQuestionResponseDTO'
+          type: array
+          title: Questions
+          default: []
+      type: object
+      required:
+        - title
+        - reading_id
+        - added_by_admin_id
+        - created_at
+        - updated_at
+      title: ReadingResponseDTO
+      description: DTO for representing reading material in API responses.
+    ReadingUpdateDTO:
+      properties:
+        title:
+          anyOf:
+            - type: string
+              maxLength: 255
+              minLength: 1
+            - type: 'null'
+          title: Title
+        content_text:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Content Text
+        content_image_url:
+          anyOf:
+            - type: string
+              maxLength: 2083
+              minLength: 1
+              format: uri
+            - type: 'null'
+          title: Content Image Url
+        age_category:
+          anyOf:
+            - type: string
+              maxLength: 50
+            - type: 'null'
+          title: Age Category
+        difficulty:
+          anyOf:
+            - $ref: '#/components/schemas/DifficultyLevel'
+            - type: 'null'
+        language:
+          anyOf:
+            - type: string
+              maxLength: 10
+            - type: 'null'
+          title: Language
+        genre:
+          anyOf:
+            - type: string
+              maxLength: 100
+            - type: 'null'
+          title: Genre
+      type: object
+      title: ReadingUpdateDTO
+      description: DTO for updating an existing reading material. All fields are optional.
+    RequestUploadURLResponseDTO:
+      properties:
+        upload_url:
+          type: string
+          title: Upload Url
+          description: The presigned URL to which the client should upload the file.
+        blob_name:
+          type: string
+          title: Blob Name
+          description: The name of the blob (file path in storage) that will be created.
+        required_fields:
+          anyOf:
+            - additionalProperties:
+                type: string
+              type: object
+            - type: 'null'
+          title: Required Fields
+          description: Any required fields or headers for the upload request.
+      type: object
+      required:
+        - upload_url
+        - blob_name
+      title: RequestUploadURLResponseDTO
+      description: DTO for the response when requesting a presigned URL for file upload.
+    StartAssessmentRequestDTO:
+      properties:
+        reading_id:
+          type: string
+          format: uuid
+          title: Reading Id
+          description: The ID of the reading material for the assessment.
+      type: object
+      required:
+        - reading_id
+      title: StartAssessmentRequestDTO
+      description: DTO for a student to request the start of a new assessment.
+    StudentProgressSummaryDTO:
+      properties:
+        student_info:
+          $ref: '#/components/schemas/UserResponseDTO'
+        total_assessments_assigned:
+          type: integer
+          title: Total Assessments Assigned
+          description: Total number of assessments assigned or started by the student.
+          default: 0
+        total_assessments_completed:
+          type: integer
+          title: Total Assessments Completed
+          description: Total number of assessments marked as COMPLETED.
+          default: 0
+        average_comprehension_score:
+          anyOf:
+            - type: number
+            - type: 'null'
+          title: Average Comprehension Score
+          description: Average comprehension score over completed assessments.
+        average_fluency_score:
+          anyOf:
+            - type: number
+            - type: 'null'
+          title: Average Fluency Score
+          description: Average fluency score over completed assessments.
+        recent_assessments:
+          items:
+            $ref: '#/components/schemas/AssessmentAttemptSummaryDTO'
+          type: array
+          title: Recent Assessments
+          description: Summary of a few recent assessment attempts.
+      type: object
+      required:
+        - student_info
+      title: StudentProgressSummaryDTO
+      description: Detailed progress summary for a single student.
+    StudentQuizQuestionResponseDTO:
+      properties:
+        question_text:
+          type: string
+          minLength: 1
+          title: Question Text
+          description: The text of the quiz question.
+        options:
+          additionalProperties:
+            type: string
+          type: object
+          title: Options
+          description: 'Key-value pairs for options, e.g., {"A": "Option Text A", "B": "Option Text B"}.'
+        correct_option_id:
+          type: string
+          title: Correct Option Id
+          description: The key corresponding to the correct option in the options dictionary (e.g., "A").
+        language:
+          type: string
+          maxLength: 10
+          title: Language
+          description: Language code for the question.
+          default: en
+        question_id:
+          type: string
+          format: uuid
+          title: Question Id
+        reading_id:
+          type: string
+          format: uuid
+          title: Reading Id
+      type: object
+      required:
+        - question_text
+        - options
+        - correct_option_id
+        - question_id
+        - reading_id
+      title: StudentQuizQuestionResponseDTO
+      description: DTO for representing a quiz question in student-facing views (omits correct answer and admin details).
+    SubmittedAnswerDetailDTO:
+      properties:
+        question_id:
+          type: string
+          format: uuid
+          title: Question Id
+        question_text:
+          type: string
+          title: Question Text
+          description: The text of the quiz question.
+        selected_option_id:
+          type: string
+          title: Selected Option Id
+          description: The option ID selected by the student.
+        is_correct:
+          type: boolean
+          title: Is Correct
+          description: Whether the selected option was correct.
+        correct_option_id:
+          type: string
+          title: Correct Option Id
+          description: The ID of the correct option for this question.
+        options:
+          additionalProperties: true
+          type: object
+          title: Options
+          description: All available options for this question.
+      type: object
+      required:
+        - question_id
+        - question_text
+        - selected_option_id
+        - is_correct
+        - correct_option_id
+        - options
+      title: SubmittedAnswerDetailDTO
+      description: DTO for individual student answer review, including question context.
+    SystemConfigResponseDTO:
+      properties:
+        key:
+          type: string
+          maxLength: 255
+          minLength: 1
+          title: Key
+          description: The unique key for the configuration setting (e.g., 'MAINTENANCE_MODE').
+        value:
+          title: Value
+          description: The value of the configuration setting. Can be string, number, boolean, list, or dict.
+        description:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Description
+          description: A human-readable description of what this configuration setting controls.
+        updated_at:
+          type: string
+          format: date-time
+          title: Updated At
+          description: Timestamp of when this configuration was last updated.
+      type: object
+      required:
+        - key
+        - value
+        - updated_at
+      title: SystemConfigResponseDTO
+      description: DTO for representing a system configuration setting in API responses.
+    SystemConfigUpdateDTO:
+      properties:
+        value:
+          title: Value
+          description: The new value for the configuration setting.
+        description:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Description
+          description: Optional new description for the setting. If None, existing description may be preserved or cleared based on use case logic.
+      type: object
+      required:
+        - value
+      title: SystemConfigUpdateDTO
+      description: |-
+        DTO for updating an existing system configuration setting.
+        The 'key' is typically part of the URL path, not the request body for an update.
+    TokenResponse:
+      properties:
+        access_token:
+          type: string
+          title: Access Token
+        refresh_token:
+          type: string
+          title: Refresh Token
+        token_type:
+          type: string
+          title: Token Type
+          default: bearer
+      type: object
+      required:
+        - access_token
+        - refresh_token
+      title: TokenResponse
+      description: |-
+        Schema for the response when tokens are issued (e.g., after login).
+        Includes access token, refresh token, and token type.
+    UserCreateRequest:
+      properties:
+        email:
+          type: string
+          format: email
+          title: Email
+        first_name:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: First Name
+        last_name:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Last Name
+        preferred_language:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Preferred Language
+          default: en
+        password:
+          type: string
+          title: Password
+        role:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Role
+      type: object
+      required:
+        - email
+        - password
+      title: UserCreateRequest
+    UserResponse:
+      properties:
+        email:
+          type: string
+          format: email
+          title: Email
+        first_name:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: First Name
+        last_name:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Last Name
+        preferred_language:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Preferred Language
+          default: en
+        user_id:
+          type: string
+          format: uuid
+          title: User Id
+        role:
+          type: string
+          title: Role
+      type: object
+      required:
+        - email
+        - user_id
+        - role
+      title: UserResponse
+    UserResponseDTO:
+      properties:
+        user_id:
+          type: string
+          format: uuid
+          title: User Id
+        email:
+          type: string
+          format: email
+          title: Email
+        first_name:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: First Name
+        last_name:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Last Name
+        role:
+          $ref: '#/components/schemas/UserRole'
+      type: object
+      required:
+        - user_id
+        - email
+        - role
+      title: UserResponseDTO
+      description: |-
+        A DTO for representing basic user details, often nested in other responses
+        (e.g., details of students in a class list).
+        It omits sensitive information like password_hash.
+    UserRole:
+      type: string
+      enum:
+        - student
+        - teacher
+        - parent
+        - admin
+      title: UserRole
+    UserUpdateRequest:
+      properties:
+        email:
+          anyOf:
+            - type: string
+              format: email
+            - type: 'null'
+          title: Email
+        first_name:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: First Name
+        last_name:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Last Name
+        preferred_language:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Preferred Language
+      type: object
+      title: UserUpdateRequest
+    ValidationError:
+      properties:
+        loc:
+          items:
+            anyOf:
+              - type: string
+              - type: integer
+          type: array
+          title: Location
+        msg:
+          type: string
+          title: Message
+        type:
+          type: string
+          title: Error Type
+      type: object
+      required:
+        - loc
+        - msg
+        - type
+      title: ValidationError
+  securitySchemes:
+    OAuth2PasswordBearer:
+      type: oauth2
+      flows:
+        password:
+          scopes: {}
+          tokenUrl: /api/v1/auth/login
