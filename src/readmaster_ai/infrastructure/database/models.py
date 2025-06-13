@@ -125,9 +125,9 @@ class AssessmentModel(Base):
     audio_file_url = Column(String)
     audio_duration_seconds = Column(Integer)
     status = Column(SQLAlchemyEnum(*ASSESSMENT_STATUS_ENUM_VALUES, name='assessment_status_enum', create_type=False), nullable=False, default='pending_audio', index=True)
-    assessment_date = Column(DateTime, default=datetime.now(timezone.utc), index=True)
+    assessment_date = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
     ai_raw_speech_to_text = Column(Text)
-    updated_at = Column(DateTime, default=datetime.now(timezone.utc), onupdate=datetime.now(timezone.utc))
+    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
     student = relationship("UserModel", foreign_keys=[student_id], back_populates="assessments_taken")
     reading = relationship("ReadingModel", back_populates="assessments")

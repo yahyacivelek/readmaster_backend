@@ -5,6 +5,7 @@ from typing import Optional, List # List might be needed for future list methods
 from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update as sqlalchemy_update
+from datetime import datetime, timezone
 
 from readmaster_ai.domain.entities.assessment import Assessment as DomainAssessment
 # Import AssessmentStatus from domain entities for consistency with the entity definition
@@ -53,6 +54,15 @@ class AssessmentRepositoryImpl(AssessmentRepository):
 
     async def create(self, assessment: DomainAssessment) -> DomainAssessment:
         """Creates a new assessment entry in the database."""
+        # Ensure datetimes are timezone-aware UTC
+        assessment_date = assessment.assessment_date
+        updated_at = assessment.updated_at
+
+        if assessment_date and assessment_date.tzinfo is None:
+            assessment_date = assessment_date.replace(tzinfo=timezone.utc)
+        if updated_at and updated_at.tzinfo is None:
+            updated_at = updated_at.replace(tzinfo=timezone.utc)
+
         model = AssessmentModel(
             assessment_id=assessment.assessment_id, # Application/use case generates ID
             student_id=assessment.student_id,
@@ -61,9 +71,9 @@ class AssessmentRepositoryImpl(AssessmentRepository):
             audio_file_url=assessment.audio_file_url,
             audio_duration_seconds=assessment.audio_duration, # Map domain field to DB field
             status=assessment.status.value, # Convert Enum to its string value for DB
-            assessment_date=assessment.assessment_date, # Domain entity sets this
+            assessment_date=assessment_date, # Use timezone-aware datetime
             ai_raw_speech_to_text=assessment.ai_raw_speech_to_text,
-            updated_at=assessment.updated_at # Domain entity sets this
+            updated_at=updated_at # Use timezone-aware datetime
         )
         self.session.add(model)
         await self.session.flush()

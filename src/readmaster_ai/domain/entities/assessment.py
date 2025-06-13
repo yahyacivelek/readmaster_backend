@@ -1,7 +1,7 @@
 from __future__ import annotations
 from typing import List, TYPE_CHECKING, Optional, Any
 from uuid import UUID, uuid4
-from datetime import datetime
+from datetime import datetime, timezone
 
 # Enums are now in value_objects
 # from enum import Enum # No longer needed here
@@ -24,7 +24,7 @@ class Assessment:
     ai_raw_speech_to_text: Optional[str]
     # result: Optional[AssessmentResult] # One-to-one, managed by repository
     # quiz_answers: List[StudentQuizAnswer] # One-to-many, managed by repository
-    updated_at: datetime # From ERD
+    updated_at: datetime
 
     def __init__(self, student_id: UUID, reading_id: UUID, # student_id and reading_id are mandatory
                  assessment_id: Optional[UUID] = None,
@@ -41,11 +41,14 @@ class Assessment:
         self.audio_file_url = audio_file_url
         self.audio_duration = audio_duration
         self.status = status
-        self.assessment_date = assessment_date if assessment_date else datetime.utcnow()
+        
+        # Ensure timezone-aware UTC datetimes
+        now = datetime.now(timezone.utc)
+        self.assessment_date = assessment_date.replace(tzinfo=timezone.utc) if assessment_date and assessment_date.tzinfo is None else (assessment_date or now)
         self.ai_raw_speech_to_text = ai_raw_speech_to_text
         self.result: Optional[AssessmentResult] = None # Initialize as None
         self.quiz_answers: List[StudentQuizAnswer] = [] # Initialize as empty list
-        self.updated_at = updated_at if updated_at else datetime.utcnow()
+        self.updated_at = updated_at.replace(tzinfo=timezone.utc) if updated_at and updated_at.tzinfo is None else (updated_at or now)
 
 
     def process_audio(self) -> bool:
@@ -54,7 +57,7 @@ class Assessment:
         if self.audio_file_url and self.status == AssessmentStatus.PENDING_AUDIO:
             print(f"Assessment {self.assessment_id}: Processing audio file {self.audio_file_url}.")
             self.status = AssessmentStatus.PROCESSING
-            self.updated_at = datetime.utcnow()
+            self.updated_at = datetime.now(timezone.utc)
             # In a real system, this would likely enqueue a task for an AI worker.
             return True
         print(f"Assessment {self.assessment_id}: Cannot process. Audio URL: {self.audio_file_url}, Status: {self.status}")
@@ -69,18 +72,18 @@ class Assessment:
             from .assessment_result import AssessmentResult # Local import
             # Example: self.result = AssessmentResult(assessment_id=self.assessment_id, analysis_data={"dummy": "data"}, comprehension_score=0.0)
             self.status = AssessmentStatus.COMPLETED
-            self.updated_at = datetime.utcnow()
+            self.updated_at = datetime.now(timezone.utc)
             return True
         print(f"Assessment {self.assessment_id}: Cannot calculate scores. Status: {self.status}")
         return False
 
     def add_quiz_answer(self, answer: StudentQuizAnswer):
         self.quiz_answers.append(answer)
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(timezone.utc)
         print(f"Quiz answer added to assessment {self.assessment_id}")
 
 
     def set_result(self, result: AssessmentResult):
         self.result = result
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(timezone.utc)
         print(f"Result set for assessment {self.assessment_id}")
