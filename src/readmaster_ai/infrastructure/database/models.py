@@ -52,7 +52,7 @@ class UserModel(Base):
     password_hash = Column(String, nullable=False)
     first_name = Column(String)
     last_name = Column(String)
-    role = Column(SQLAlchemyEnum(*USER_ROLE_ENUM_VALUES, name='user_role_enum_sqlalchemy', create_type=False), nullable=False)
+    role = Column(SQLAlchemyEnum(*USER_ROLE_ENUM_VALUES, name='user_role_enum', create_type=False), nullable=False)
     created_at = Column(DateTime(timezone=True), default=datetime.now(timezone.utc))
     updated_at = Column(DateTime(timezone=True), default=datetime.now(timezone.utc), onupdate=datetime.now(timezone.utc))
     preferred_language = Column(String, default='en')
@@ -104,7 +104,7 @@ class ReadingModel(Base):
     content_text = Column(Text)
     content_image_url = Column(String)
     age_category = Column(String) # e.g., "6-8 years", "9-12 years"
-    difficulty_level = Column(SQLAlchemyEnum(*DIFFICULTY_LEVEL_ENUM_VALUES, name='difficulty_level_enum_sqlalchemy', create_type=False))
+    difficulty_level = Column(SQLAlchemyEnum(*DIFFICULTY_LEVEL_ENUM_VALUES, name='difficulty_level_enum', create_type=False))
     language = Column(String, default='en')
     genre = Column(String)
     added_by_admin_id = Column(PG_UUID(as_uuid=True), ForeignKey('Users.user_id')) # Assuming only Admins add readings as per ERD
@@ -124,7 +124,7 @@ class AssessmentModel(Base):
     assigned_by_teacher_id = Column(PG_UUID(as_uuid=True), ForeignKey('Users.user_id'), nullable=True) # Nullable if student picks own
     audio_file_url = Column(String)
     audio_duration_seconds = Column(Integer)
-    status = Column(SQLAlchemyEnum(*ASSESSMENT_STATUS_ENUM_VALUES, name='assessment_status_enum_sqlalchemy', create_type=False), nullable=False, default='pending_audio', index=True)
+    status = Column(SQLAlchemyEnum(*ASSESSMENT_STATUS_ENUM_VALUES, name='assessment_status_enum', create_type=False), nullable=False, default='pending_audio', index=True)
     assessment_date = Column(DateTime, default=datetime.now(timezone.utc), index=True)
     ai_raw_speech_to_text = Column(Text)
     updated_at = Column(DateTime, default=datetime.now(timezone.utc), onupdate=datetime.now(timezone.utc))
@@ -196,7 +196,7 @@ class NotificationModel(Base):
     __tablename__ = "Notifications"
     notification_id = Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id = Column(PG_UUID(as_uuid=True), ForeignKey('Users.user_id'), nullable=False, index=True)
-    type = Column(SQLAlchemyEnum(*NOTIFICATION_TYPE_ENUM_VALUES, name='notification_type_enum_sqlalchemy', create_type=False), nullable=False)
+    type = Column(SQLAlchemyEnum(*NOTIFICATION_TYPE_ENUM_VALUES, name='notification_type_enum', create_type=False), nullable=False)
     message = Column(Text, nullable=False)
     related_entity_id = Column(PG_UUID(as_uuid=True), nullable=True) # e.g., assessment_id, class_id
     is_read = Column(Boolean, default=False, nullable=False)
