@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from readmaster_ai.presentation.api.v1 import api_v1_router
 # from readmaster_ai.shared.exceptions import ApplicationException # For global exception handling
 # from fastapi.responses import JSONResponse # For global exception handling
@@ -8,6 +9,15 @@ app = FastAPI(
     title="Readmaster.ai API",
     version="0.1.0",
     description="API for Readmaster.ai, a web-based reading assessment platform."
+)
+
+# Configure CORS for local development
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allows all origins
+    allow_credentials=True,
+    allow_methods=["*"],  # Allows all methods
+    allow_headers=["*"],  # Allows all headers
 )
 
 # Include v1 router
