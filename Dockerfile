@@ -7,7 +7,8 @@ ENV PYTHONUNBUFFERED=1 \
     POETRY_VERSION=2.1.3 \
     POETRY_HOME="/opt/poetry" \
     POETRY_VIRTUALENVS_CREATE=false \
-    PATH="$POETRY_HOME/bin:$PATH"
+    PATH="$POETRY_HOME/bin:$PATH" \
+    PYTHONPATH=/app
 
 # 3. Install OS dependencies
 # Install curl for downloading Poetry, and build-essential for any C extensions.
@@ -28,8 +29,6 @@ WORKDIR /app
 COPY poetry.lock pyproject.toml ./
 
 # 7. Install project dependencies
-# --no-root: Don't install the project itself, only dependencies
-# --no-dev: Exclude development dependencies
 RUN poetry install --no-root
 
 # 8. Copy application code
@@ -37,11 +36,14 @@ RUN poetry install --no-root
 # Ensure you have a .dockerignore file to exclude unnecessary files/folders (like .git, .venv, __pycache__, etc.)
 COPY . .
 
-# 9. Expose port (for the API service)
+# 9. Install the package in development mode
+RUN poetry install
+
+# 10. Expose port (for the API service)
 # This is documentation; the actual port mapping is done in docker-compose.yml or via `docker run -p`
 EXPOSE 8000
 
-# 10. Set default command (optional, can be overridden in docker-compose.yml)
+# 11. Set default command (optional, can be overridden in docker-compose.yml)
 # The command to run the application will be specified in docker-compose.yml
 # For example: CMD ["poetry", "run", "uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]
 # Or for a worker: CMD ["poetry", "run", "celery", "-A", "src.core.celery_app.celery_app", "worker", "-l", "info"]
