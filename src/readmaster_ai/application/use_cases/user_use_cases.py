@@ -7,7 +7,7 @@ from uuid import uuid4
 from readmaster_ai.domain.entities.user import DomainUser
 from readmaster_ai.domain.repositories.user_repository import UserRepository
 from readmaster_ai.domain.value_objects.common_enums import UserRole # For role handling
-from readmaster_ai.presentation.schemas.user_schemas import UserCreateRequest # DTO for input
+from readmaster_ai.presentation.schemas.user_schemas import UserCreateRequest, TeacherStudentCreateRequestSchema # DTO for input
 from readmaster_ai.shared.exceptions import ApplicationException # For custom error handling
 
 # Setup password hashing context
@@ -143,6 +143,57 @@ class UpdateUserProfileUseCase:
 
         updated_user_domain = await self.user_repo.update(current_user)
         return updated_user_domain
+
+
+class CreateStudentByTeacherUseCase:
+    """Use case for an authenticated teacher to create a new student account."""
+    def __init__(self, user_repo: UserRepository):
+        self.user_repo = user_repo
+
+    async def execute(self, teacher_user: DomainUser, student_data: TeacherStudentCreateRequestSchema) -> DomainUser:
+        """
+        Executes the student creation process by a teacher.
+
+        Args:
+            teacher_user: The authenticated teacher (DomainUser).
+            student_data: DTO containing data for the new student.
+
+        Returns:
+            The created student DomainUser entity.
+
+        Raises:
+            ForbiddenException: If the requesting user is not a teacher.
+            ApplicationException: If email already exists or other validation fails.
+        """
+        if teacher_user.role != UserRole.TEACHER:
+            # Note: The prompt used ForbiddenException, but it's not imported in this file.
+            # Assuming ApplicationException with a 403 status code is appropriate or ForbiddenException should be imported.
+            # For now, using ApplicationException as per existing style of this file for other errors.
+            # If ForbiddenException is preferred, it needs to be imported:
+            # from readmaster_ai.shared.exceptions import ForbiddenException
+            raise ApplicationException("User is not authorized to create a student account.", status_code=403)
+
+
+        existing_student_by_email = await self.user_repo.get_by_email(student_data.email)
+        if existing_student_by_email:
+            raise ApplicationException("A user with this email already exists.", status_code=409)
+
+        hashed_password = pwd_context.hash(student_data.password)
+
+        # student_data.role is fixed to "student" by TeacherStudentCreateRequestSchema
+        new_student_user = DomainUser(
+            user_id=uuid4(),
+            email=student_data.email,
+            password_hash=hashed_password,
+            first_name=student_data.first_name,
+            last_name=student_data.last_name,
+            role=UserRole.STUDENT, # Role is fixed to STUDENT
+            preferred_language=student_data.preferred_language if student_data.preferred_language else 'en',
+            # class_id is not set here. Teacher adds student to class in a separate step/use case.
+        )
+
+        created_student = await self.user_repo.create(new_student_user)
+        return created_student
 
 # Future use cases:
 # class ChangePasswordUseCase: ...

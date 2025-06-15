@@ -4,6 +4,7 @@ and assessment results.
 """
 from typing import List, Optional
 from uuid import UUID
+from uuid import uuid4 # For generating user_id
 
 # Domain Entities and Repositories
 from readmaster_ai.domain.entities.user import DomainUser
@@ -20,10 +21,13 @@ from readmaster_ai.domain.repositories.reading_repository import ReadingReposito
 from readmaster_ai.application.dto.user_dtos import UserResponseDTO # For listing children
 from readmaster_ai.application.dto.progress_dtos import StudentProgressSummaryDTO
 from readmaster_ai.application.dto.assessment_dtos import AssessmentResultDetailDTO
+from readmaster_ai.presentation.schemas.user_schemas import ParentChildCreateRequestSchema # Input DTO
 
 # Reused Use Cases for fetching detailed data
 from readmaster_ai.application.use_cases.progress_use_cases import GetStudentProgressSummaryUseCase
 from readmaster_ai.application.use_cases.assessment_use_cases import GetAssessmentResultDetailsUseCase
+# Import pwd_context from user_use_cases, or define it if preferred
+from readmaster_ai.application.use_cases.user_use_cases import pwd_context
 
 # Shared Exceptions
 from readmaster_ai.shared.exceptions import ForbiddenException, NotFoundException, ApplicationException
@@ -157,3 +161,59 @@ class GetChildAssessmentResultForParentUseCase:
         except ForbiddenException: # Should not happen if is_linked and assessment belongs to child
             # This would imply assessment.student_id != child_student_id, which is an inconsistency.
             raise ApplicationException("Assessment does not belong to the specified child.", status_code=403)
+
+
+class CreateStudentByParentUseCase:
+    """Use case for an authenticated parent to create a new student account (their child)."""
+    def __init__(self, user_repo: UserRepository):
+        self.user_repo = user_repo
+
+    async def execute(self, parent_user: DomainUser, child_data: ParentChildCreateRequestSchema) -> DomainUser:
+        """
+        Executes the student creation process by a parent.
+
+        Args:
+            parent_user: The authenticated parent (DomainUser).
+            child_data: DTO containing data for the new student (child).
+
+        Returns:
+            The created student DomainUser entity.
+
+        Raises:
+            ForbiddenException: If the requesting user is not a parent.
+            ApplicationException: If email already exists or other validation fails (e.g., from user_repo.create).
+        """
+        if parent_user.role != UserRole.PARENT:
+            raise ForbiddenException("User is not authorized to create a child account.")
+
+        existing_student_by_email = await self.user_repo.get_by_email(child_data.email)
+        if existing_student_by_email:
+            raise ApplicationException("A user with this email already exists.", status_code=409) # Conflict
+
+        hashed_password = pwd_context.hash(child_data.password)
+
+        # child_data.role is fixed to "student" by ParentChildCreateRequestSchema
+        # We use UserRole.STUDENT for the domain entity.
+        new_student_user = DomainUser(
+            user_id=uuid4(), # Generate new UUID for the student
+            email=child_data.email,
+            password_hash=hashed_password,
+            first_name=child_data.first_name,
+            last_name=child_data.last_name,
+            role=UserRole.STUDENT, # Role is fixed to STUDENT
+            preferred_language=child_data.preferred_language if child_data.preferred_language else 'en',
+            # class_id will be None by default as parent is creating a general student account.
+            # Teacher can later add this student to a class.
+        )
+
+        created_student = await self.user_repo.create(new_student_user)
+
+        # Link the parent to the newly created student
+        # The relationship_type can be a predefined string.
+        await self.user_repo.link_parent_to_student(
+            parent_id=parent_user.user_id,
+            student_id=created_student.user_id,
+            relationship_type="parent" # Or a more generic "guardian" if applicable
+        )
+
+        return created_student

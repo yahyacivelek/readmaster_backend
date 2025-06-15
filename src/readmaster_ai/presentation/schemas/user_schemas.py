@@ -1,6 +1,6 @@
 from pydantic import BaseModel, EmailStr
 from uuid import UUID
-from typing import Optional # For optional fields
+from typing import Optional, Literal # Import Literal
 
 class UserBase(BaseModel):
     email: EmailStr
@@ -29,3 +29,14 @@ class UserResponse(UserBase):
 
     class Config:
         from_attributes = True # Changed from orm_mode = True for Pydantic v2
+
+# New Schemas for Parent and Teacher creating Student accounts
+class ParentChildCreateRequestSchema(UserCreateRequest):
+    # Inherits email, password, first_name, last_name, preferred_language from UserCreateRequest
+    # Role is fixed to 'student' and not settable by the parent user.
+    role: Literal["student"] = "student"
+
+class TeacherStudentCreateRequestSchema(UserCreateRequest):
+    # Inherits email, password, first_name, last_name, preferred_language from UserCreateRequest
+    # Role is fixed to 'student' and not settable by the teacher user.
+    role: Literal["student"] = "student"
