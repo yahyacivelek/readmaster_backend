@@ -25,3 +25,41 @@ class UserResponseDTO(BaseModel):
         from_attributes = True # For Pydantic v2 (replaces orm_mode)
         use_enum_values = True # Ensures enum values are used in serialization if needed by client
                                # FastAPI usually handles this correctly for JSON responses.
+
+
+class UserCreateDTO(BaseModel): # More generic DTO, can be used by use cases
+    email: EmailStr
+    password: str # Plain password, hashing happens in use case or service
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    preferred_language: Optional[str] = 'en'
+    role: UserRole # Use the enum
+
+    class Config:
+        from_attributes = True
+
+
+class TeacherStudentCreateRequestDTO(BaseModel):
+    """DTO for a teacher creating a student account."""
+    email: EmailStr
+    password: str # Plain password
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    preferred_language: Optional[str] = 'en'
+    # Role is implicitly 'student' for this use case, will be set by the use case.
+
+    class Config:
+        from_attributes = True
+
+
+class ParentChildCreateRequestDTO(BaseModel):
+    """DTO for a parent creating a child (student) account."""
+    email: EmailStr
+    password: str # Plain password
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    preferred_language: Optional[str] = 'en'
+    # Role is implicitly 'student' for this use case, will be set by the use case.
+
+    class Config:
+        from_attributes = True

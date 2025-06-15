@@ -181,3 +181,13 @@ class UserRepositoryImpl(UserRepository):
         result = await self.session.execute(stmt)
         count = result.scalar_one_or_none() # scalar_one_or_none in case the query itself could return no row (it won't with count)
         return (count or 0) > 0
+
+    async def get_student_ids_for_parent(self, parent_id: UUID) -> List[UUID]:
+        """Retrieves a list of student UUIDs linked to a specific parent ID."""
+        stmt = (
+            select(ParentsStudentsAssociation.c.student_id)
+            .where(ParentsStudentsAssociation.c.parent_id == parent_id)
+        )
+        result = await self.session.execute(stmt)
+        student_ids = result.scalars().all()
+        return list(student_ids) # Ensure it's a list of UUIDs

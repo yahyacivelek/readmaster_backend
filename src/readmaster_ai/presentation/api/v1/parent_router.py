@@ -39,9 +39,20 @@ from readmaster_ai.infrastructure.database.repositories.reading_repository_impl 
 # Application (Use Cases)
 from readmaster_ai.application.use_cases.parent_use_cases import (
     ListParentChildrenUseCase, GetChildProgressForParentUseCase, GetChildAssessmentResultForParentUseCase,
-    CreateStudentByParentUseCase # New
+    CreateChildAccountUseCase, # Renamed
+    ParentAssignReadingUseCase,
+    ListChildAssignmentsUseCase,
+    UpdateChildAssignmentUseCase,
+    DeleteChildAssignmentUseCase,
 )
-from readmaster_ai.presentation.schemas.user_schemas import ParentChildCreateRequestSchema, UserResponse # New
+# Presentation Schemas
+from readmaster_ai.presentation.schemas.user_schemas import ParentChildCreateRequestSchema, UserResponseSchema # Adjusted to UserResponseSchema
+from readmaster_ai.presentation.schemas.assessment_schemas import (
+    ParentAssignReadingRequestSchema,
+    AssessmentResponseSchema,
+    AssignmentUpdateSchema,
+    PaginatedAssessmentListResponseSchema,
+)
 # Reused Use Cases (needed for DI into parent use cases)
 from readmaster_ai.application.use_cases.progress_use_cases import GetStudentProgressSummaryUseCase
 from readmaster_ai.application.use_cases.assessment_use_cases import GetAssessmentResultDetailsUseCase
@@ -65,11 +76,39 @@ def get_quiz_question_repo(session: AsyncSession = Depends(get_db)) -> QuizQuest
 
 # --- DI for Reused Use Cases (which are dependencies of Parent Use Cases) ---
 
-# New DI for the CreateStudentByParentUseCase
-def get_create_student_by_parent_use_case(
+# New DI for the CreateChildAccountUseCase
+def get_create_child_account_use_case( # Renamed
     user_repo: UserRepository = Depends(get_user_repo)
-) -> CreateStudentByParentUseCase:
-    return CreateStudentByParentUseCase(user_repo=user_repo)
+) -> CreateChildAccountUseCase: # Renamed
+    return CreateChildAccountUseCase(user_repository=user_repo) # Renamed internal var
+
+# DI for new Assignment Use Cases
+def get_parent_assign_reading_use_case(
+    assessment_repo: AssessmentRepository = Depends(get_assessment_repo),
+    user_repo: UserRepository = Depends(get_user_repo),
+    reading_repo: ReadingRepository = Depends(get_reading_repo),
+) -> ParentAssignReadingUseCase:
+    return ParentAssignReadingUseCase(assessment_repository=assessment_repo, user_repository=user_repo, reading_repository=reading_repo)
+
+def get_list_child_assignments_use_case(
+    assessment_repo: AssessmentRepository = Depends(get_assessment_repo),
+    user_repo: UserRepository = Depends(get_user_repo),
+    reading_repo: ReadingRepository = Depends(get_reading_repo),
+) -> ListChildAssignmentsUseCase:
+    return ListChildAssignmentsUseCase(assessment_repository=assessment_repo, user_repository=user_repo, reading_repository=reading_repo)
+
+def get_update_child_assignment_use_case(
+    assessment_repo: AssessmentRepository = Depends(get_assessment_repo),
+    user_repo: UserRepository = Depends(get_user_repo),
+) -> UpdateChildAssignmentUseCase:
+    return UpdateChildAssignmentUseCase(assessment_repository=assessment_repo, user_repository=user_repo)
+
+def get_delete_child_assignment_use_case(
+    assessment_repo: AssessmentRepository = Depends(get_assessment_repo),
+    user_repo: UserRepository = Depends(get_user_repo),
+) -> DeleteChildAssignmentUseCase:
+    return DeleteChildAssignmentUseCase(assessment_repository=assessment_repo, user_repository=user_repo)
+
 
 def get_student_progress_summary_uc(
     user_repo: UserRepository = Depends(get_user_repo),
@@ -170,29 +209,156 @@ async def parent_get_child_assessment_result_details(
     "/children", # Path based on swagger: /api/v1/parent/children
     response_model=UserResponse,
     status_code=status.HTTP_201_CREATED,
-    summary="Parent Create Child Account", # From Swagger
-    tags=["Parent - Account Management"] # New tag as per Swagger
+    summary="Parent Create Child Account",
+    tags=["Parent - Account Management"]
 )
-async def parent_create_child_account(
-    request_data: ParentChildCreateRequestSchema,
-    current_parent: DomainUser = Depends(get_current_user), # Ensures authenticated and gets parent user
-    use_case: CreateStudentByParentUseCase = Depends(get_create_student_by_parent_use_case)
+async def parent_create_child_account( # Renamed function to match endpoint summary better
+    request_schema: ParentChildCreateRequestSchema, # Correct schema from presentation layer
+    current_parent: DomainUser = Depends(require_role(UserRole.PARENT)), # Explicitly use require_role here for clarity
+    use_case: CreateChildAccountUseCase = Depends(get_create_child_account_use_case), # Use renamed UC
 ):
     """
-    Allows an authenticated parent to create a new student account that is
-    automatically linked as their child. The created user's role will be 'student'.
+    Allows an authenticated parent to create a new student account linked to them.
     """
-    # The router-level dependency `require_role(UserRole.PARENT)` should already enforce parent role.
-    # If not, an explicit check can be added here, but it's better handled by the dependency.
     try:
-        # The use case already checks if current_parent.role is PARENT.
-        created_student_domain = await use_case.execute(parent_user=current_parent, child_data=request_data)
-        return UserResponse.model_validate(created_student_domain)
-    except ForbiddenException as e: # From use case if parent_user.role is not PARENT
+        # Map schema to DTO for the use case
+        child_dto = ParentChildCreateRequestDTO(**request_schema.model_dump())
+        created_child_user_dto = await use_case.execute(parent_user=current_parent, child_data=child_dto)
+        # Map DTO back to response schema
+        return UserResponseSchema.model_validate(created_child_user_dto)
+    except InvalidInputError as e: # Specific exception from UC if email exists
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
+    except ForbiddenException as e:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
-    except ApplicationException as e: # Handles other errors like email already exists (409)
+    except ApplicationException as e:
         raise HTTPException(status_code=e.status_code if hasattr(e, 'status_code') else 400, detail=str(e.message if hasattr(e, 'message') else str(e)))
     except Exception as e:
-        # Log unexpected errors
         print(f"Unexpected error in parent_create_child_account: {e}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An unexpected error occurred while creating the child account.")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An unexpected error occurred.")
+
+
+# --- Parent Assignment Endpoints ---
+
+@router.post(
+    "/children/{child_id}/assignments",
+    response_model=AssessmentResponseSchema,
+    status_code=status.HTTP_201_CREATED,
+    summary="Parent Assign Reading to Child",
+    tags=["Parent - Assignments"]
+)
+async def parent_assign_reading_to_child(
+    child_id: UUID,
+    request_schema: ParentAssignReadingRequestSchema,
+    current_parent: DomainUser = Depends(require_role(UserRole.PARENT)),
+    use_case: ParentAssignReadingUseCase = Depends(get_parent_assign_reading_use_case),
+):
+    """
+    Allows an authenticated parent to assign a specific reading material to one of their linked children.
+    """
+    try:
+        assign_dto = ParentAssignReadingRequestDTO(**request_schema.model_dump())
+        assessment = await use_case.execute(
+            parent_user=current_parent,
+            child_id=child_id,
+            assign_data=assign_dto
+        )
+        return AssessmentResponseSchema.model_validate(assessment)
+    except (NotFoundException, ForbiddenException) as e:
+        status_code_map = {NotFoundException: status.HTTP_404_NOT_FOUND, ForbiddenException: status.HTTP_403_FORBIDDEN}
+        raise HTTPException(status_code=status_code_map.get(type(e), status.HTTP_400_BAD_REQUEST), detail=str(e))
+    except ApplicationException as e:
+        raise HTTPException(status_code=e.status_code if hasattr(e, 'status_code') else 500, detail=str(e))
+
+
+@router.get(
+    "/children/{child_id}/assignments",
+    response_model=PaginatedAssessmentListResponseSchema,
+    summary="Parent List Child's Assignments",
+    tags=["Parent - Assignments"]
+)
+async def parent_list_child_assignments(
+    child_id: UUID,
+    current_parent: DomainUser = Depends(require_role(UserRole.PARENT)),
+    use_case: ListChildAssignmentsUseCase = Depends(get_list_child_assignments_use_case),
+    page: int = Query(1, ge=1, description="Page number for pagination."),
+    size: int = Query(20, ge=1, le=100, description="Number of items per page."),
+):
+    """
+    Retrieves a list of all readings assigned by the parent to a specific child.
+    """
+    try:
+        paginated_result_dto = await use_case.execute(
+            parent_user=current_parent,
+            child_id=child_id,
+            page=page,
+            size=size
+        )
+        # The DTO from use case should directly map to the schema
+        return paginated_result_dto
+    except (NotFoundException, ForbiddenException) as e:
+        status_code_map = {NotFoundException: status.HTTP_404_NOT_FOUND, ForbiddenException: status.HTTP_403_FORBIDDEN}
+        raise HTTPException(status_code=status_code_map.get(type(e), status.HTTP_400_BAD_REQUEST), detail=str(e))
+    except ApplicationException as e:
+        raise HTTPException(status_code=e.status_code if hasattr(e, 'status_code') else 500, detail=str(e))
+
+
+@router.put(
+    "/children/{child_id}/assignments/{assignment_id}",
+    response_model=AssessmentResponseSchema,
+    summary="Parent Update Child's Assignment",
+    tags=["Parent - Assignments"]
+)
+async def parent_update_child_assignment(
+    child_id: UUID,
+    assignment_id: UUID,
+    request_schema: AssignmentUpdateSchema,
+    current_parent: DomainUser = Depends(require_role(UserRole.PARENT)),
+    use_case: UpdateChildAssignmentUseCase = Depends(get_update_child_assignment_use_case),
+):
+    """
+    Allows an authenticated parent to update details (e.g., due date) of an existing assignment for their child.
+    Note: Currently, `due_date` update is a no-op as it's not stored on the Assessment entity.
+    """
+    try:
+        update_dto = AssignmentUpdateDTO(**request_schema.model_dump(exclude_unset=True))
+        updated_assessment = await use_case.execute(
+            parent_user=current_parent,
+            child_id=child_id,
+            assignment_id=assignment_id,
+            update_data=update_dto
+        )
+        return AssessmentResponseSchema.model_validate(updated_assessment)
+    except (NotFoundException, ForbiddenException) as e:
+        status_code_map = {NotFoundException: status.HTTP_404_NOT_FOUND, ForbiddenException: status.HTTP_403_FORBIDDEN}
+        raise HTTPException(status_code=status_code_map.get(type(e), status.HTTP_400_BAD_REQUEST), detail=str(e))
+    except ApplicationException as e:
+        raise HTTPException(status_code=e.status_code if hasattr(e, 'status_code') else 500, detail=str(e))
+
+
+@router.delete(
+    "/children/{child_id}/assignments/{assignment_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Parent Delete Child's Assignment",
+    tags=["Parent - Assignments"]
+)
+async def parent_delete_child_assignment(
+    child_id: UUID,
+    assignment_id: UUID,
+    current_parent: DomainUser = Depends(require_role(UserRole.PARENT)),
+    use_case: DeleteChildAssignmentUseCase = Depends(get_delete_child_assignment_use_case),
+):
+    """
+    Allows an authenticated parent to delete a specific assignment for their child.
+    """
+    try:
+        await use_case.execute(
+            parent_user=current_parent,
+            child_id=child_id,
+            assignment_id=assignment_id
+        )
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
+    except (NotFoundException, ForbiddenException) as e:
+        status_code_map = {NotFoundException: status.HTTP_404_NOT_FOUND, ForbiddenException: status.HTTP_403_FORBIDDEN}
+        raise HTTPException(status_code=status_code_map.get(type(e), status.HTTP_400_BAD_REQUEST), detail=str(e))
+    except ApplicationException as e:
+        raise HTTPException(status_code=e.status_code if hasattr(e, 'status_code') else 500, detail=str(e))

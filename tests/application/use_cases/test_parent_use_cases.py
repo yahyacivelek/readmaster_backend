@@ -3,33 +3,46 @@ import pytest
 import pytest_asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4, UUID
-from datetime import datetime
+from datetime import datetime, date
 from dateutil import tz
 
 from readmaster_ai.application.use_cases.parent_use_cases import (
-    ListParentChildrenUseCase, GetChildProgressForParentUseCase, GetChildAssessmentResultForParentUseCase
+    ListParentChildrenUseCase, GetChildProgressForParentUseCase, GetChildAssessmentResultForParentUseCase,
+    CreateChildAccountUseCase, # Added
+    ParentAssignReadingUseCase, # Added
+    ListChildAssignmentsUseCase, # Added
+    UpdateChildAssignmentUseCase, # Added
+    DeleteChildAssignmentUseCase # Added
 )
 # Reused Use Cases (these are dependencies of parent use cases, so we mock their instances)
 from readmaster_ai.application.use_cases.progress_use_cases import GetStudentProgressSummaryUseCase
 from readmaster_ai.application.use_cases.assessment_use_cases import GetAssessmentResultDetailsUseCase
 
 from readmaster_ai.domain.entities.user import DomainUser
-from readmaster_ai.domain.value_objects.common_enums import UserRole # Enum for roles
+from readmaster_ai.domain.entities.assessment import Assessment # Added
+from readmaster_ai.domain.entities.reading import Reading # Added
+from readmaster_ai.domain.value_objects.common_enums import UserRole, AssessmentStatus
 from readmaster_ai.domain.repositories.user_repository import UserRepository
+from readmaster_ai.domain.repositories.assessment_repository import AssessmentRepository # Added
+from readmaster_ai.domain.repositories.reading_repository import ReadingRepository # Added
 # DTOs for type hinting and verification
-from readmaster_ai.application.dto.user_dtos import UserResponseDTO
+from readmaster_ai.application.dto.user_dtos import UserResponseDTO, ParentChildCreateRequestDTO, UserCreateDTO
 from readmaster_ai.application.dto.progress_dtos import StudentProgressSummaryDTO
-from readmaster_ai.application.dto.assessment_dtos import AssessmentResultDetailDTO
-from readmaster_ai.shared.exceptions import ForbiddenException, NotFoundException
-from readmaster_ai.domain.value_objects.common_enums import AssessmentStatus
+from readmaster_ai.application.dto.assessment_dtos import AssessmentResultDetailDTO, ParentAssignReadingRequestDTO, AssessmentResponseDTO, AssignmentUpdateDTO
+from readmaster_ai.application.dto.assessment_list_dto import PaginatedAssessmentListResponseDTO, AssessmentListItemDTO
+from readmaster_ai.shared.exceptions import ForbiddenException, NotFoundException, InvalidInputError
+from readmaster_ai.services.password_service import PasswordService # Added
 
 @pytest.fixture
 def mock_user_repo_for_parent() -> MagicMock: # Renamed fixture
     """Fixture for a mocked UserRepository, tailored for parent use case tests."""
     mock = MagicMock(spec=UserRepository)
-    mock.list_children_by_parent_id = AsyncMock(return_value=[]) # Default: no children
-    mock.is_parent_of_student = AsyncMock(return_value=False) # Default: not a parent of given student
-    mock.get_by_id = AsyncMock(return_value=None) # Default: user (child) not found
+    mock.list_children_by_parent_id = AsyncMock(return_value=[])
+    mock.is_parent_of_student = AsyncMock(return_value=False)
+    mock.get_by_id = AsyncMock(return_value=None)
+    mock.get_by_email = AsyncMock(return_value=None) # Added for create child
+    mock.create_user_with_role = AsyncMock() # Added for create child
+    mock.link_parent_to_student = AsyncMock() # Added for create child
     return mock
 
 @pytest.fixture
@@ -43,22 +56,37 @@ def sample_child_user() -> DomainUser:
     return DomainUser(user_id=uuid4(), email="child.tests@example.com", password_hash="child_hash", role=UserRole.STUDENT)
 
 @pytest.fixture
-def mock_assessment_repo() -> MagicMock:
+def mock_assessment_repo() -> MagicMock: # Updated to be more specific for assignment tests
     """Fixture for a mocked AssessmentRepository."""
-    return MagicMock()
+    mock = MagicMock(spec=AssessmentRepository)
+    mock.create = AsyncMock()
+    mock.get_by_id = AsyncMock(return_value=None)
+    mock.list_by_child_and_assigner = AsyncMock(return_value=([], 0)) # PaginatedResult format
+    mock.update = AsyncMock()
+    mock.delete = AsyncMock(return_value=True)
+    return mock
 
 @pytest.fixture
-def mock_result_repo() -> MagicMock:
+def mock_result_repo() -> MagicMock: # Unused by new tests but keep for existing
     """Fixture for a mocked ResultRepository."""
     return MagicMock()
 
 @pytest.fixture
-def mock_reading_repo() -> MagicMock:
+def mock_reading_repo() -> MagicMock: # Updated to be more specific
     """Fixture for a mocked ReadingRepository."""
-    return MagicMock()
+    mock = MagicMock(spec=ReadingRepository)
+    mock.get_by_id = AsyncMock(return_value=None)
+    return mock
 
 @pytest.fixture
-def mock_student_progress_summary_uc() -> MagicMock:
+def mock_password_service() -> MagicMock:
+    """Fixture for a mocked PasswordService."""
+    mock = MagicMock(spec=PasswordService)
+    mock.hash_password = MagicMock(return_value="hashed_password")
+    return mock
+
+@pytest.fixture
+def mock_student_progress_summary_uc() -> MagicMock: # Unused by new tests but keep for existing
     """Mocks an instance of GetStudentProgressSummaryUseCase."""
     mock = MagicMock()
     # Create a mock DTO for the progress summary
@@ -264,3 +292,234 @@ async def test_get_child_assessment_result_child_not_found(
     with pytest.raises(NotFoundException) as exc_info:
         await use_case.execute(sample_parent_user, non_existent_child_id, uuid4())
     assert "Student" in exc_info.value.message
+
+
+# === CreateChildAccountUseCase Tests ===
+@pytest.mark.asyncio
+async def test_create_child_account_success(
+    mock_user_repo_for_parent: MagicMock,
+    mock_password_service: MagicMock,
+    sample_parent_user: DomainUser
+):
+    # Arrange
+    child_dto = ParentChildCreateRequestDTO(
+        email="new.child@example.com",
+        password="password123",
+        first_name="New",
+        last_name="Child"
+    )
+    created_child_user = DomainUser(
+        user_id=uuid4(),
+        email=child_dto.email,
+        password_hash="hashed_password",
+        role=UserRole.STUDENT,
+        first_name=child_dto.first_name,
+        last_name=child_dto.last_name
+    )
+    mock_user_repo_for_parent.get_by_id.return_value = sample_parent_user # For parent check
+    mock_user_repo_for_parent.get_by_email.return_value = None # No existing user with this email
+    mock_user_repo_for_parent.create_user_with_role.return_value = created_child_user
+
+    use_case = CreateChildAccountUseCase(user_repository=mock_user_repo_for_parent, password_service=mock_password_service)
+
+    # Act
+    result_dto = await use_case.execute(parent_id=sample_parent_user.user_id, child_data=child_dto)
+
+    # Assert
+    mock_user_repo_for_parent.get_by_id.assert_called_once_with(sample_parent_user.user_id)
+    mock_user_repo_for_parent.get_by_email.assert_called_once_with(child_dto.email)
+    mock_password_service.hash_password.assert_called_once_with(child_dto.password)
+
+    # Check that create_user_with_role was called with a UserCreateDTO-like structure
+    call_args = mock_user_repo_for_parent.create_user_with_role.call_args[0][0]
+    assert call_args.email == child_dto.email
+    assert call_args.password == "hashed_password" # Ensure hashed password was passed
+    assert call_args.role == UserRole.STUDENT
+
+    mock_user_repo_for_parent.link_parent_to_student.assert_called_once_with(
+        parent_id=sample_parent_user.user_id, student_id=created_child_user.user_id
+    )
+    assert isinstance(result_dto, UserResponseDTO)
+    assert result_dto.user_id == created_child_user.user_id
+    assert result_dto.email == child_dto.email
+
+@pytest.mark.asyncio
+async def test_create_child_account_email_exists(
+    mock_user_repo_for_parent: MagicMock,
+    mock_password_service: MagicMock,
+    sample_parent_user: DomainUser,
+    sample_child_user: DomainUser # Represents existing user
+):
+    # Arrange
+    child_dto = ParentChildCreateRequestDTO(email=sample_child_user.email, password="password123")
+    mock_user_repo_for_parent.get_by_id.return_value = sample_parent_user
+    mock_user_repo_for_parent.get_by_email.return_value = sample_child_user # Email already exists
+
+    use_case = CreateChildAccountUseCase(user_repository=mock_user_repo_for_parent, password_service=mock_password_service)
+
+    # Act & Assert
+    with pytest.raises(InvalidInputError):
+        await use_case.execute(parent_id=sample_parent_user.user_id, child_data=child_dto)
+
+# === ParentAssignReadingUseCase Tests ===
+@pytest.mark.asyncio
+async def test_parent_assign_reading_success(
+    mock_assessment_repo: MagicMock,
+    mock_user_repo_for_parent: MagicMock,
+    mock_reading_repo: MagicMock,
+    sample_parent_user: DomainUser,
+    sample_child_user: DomainUser
+):
+    # Arrange
+    reading_id = uuid4()
+    assign_dto = ParentAssignReadingRequestDTO(reading_id=reading_id, due_date=date.today())
+
+    mock_user_repo_for_parent.get_by_id.return_value = sample_parent_user
+    mock_user_repo_for_parent.is_parent_of_student.return_value = True
+    mock_reading_repo.get_by_id.return_value = Reading(reading_id=reading_id, title="Test Reading", content_text="...")
+
+    # Mock the assessment created by the repo
+    created_assessment = Assessment(
+        assessment_id=uuid4(),
+        student_id=sample_child_user.user_id,
+        reading_id=reading_id,
+        assigned_by_parent_id=sample_parent_user.user_id,
+        status=AssessmentStatus.PENDING_AUDIO
+    )
+    mock_assessment_repo.create.return_value = created_assessment # Changed from .add
+
+    use_case = ParentAssignReadingUseCase(
+        assessment_repository=mock_assessment_repo,
+        user_repository=mock_user_repo_for_parent,
+        reading_repository=mock_reading_repo
+    )
+
+    # Act
+    result_dto = await use_case.execute(
+        parent_id=sample_parent_user.user_id,
+        child_id=sample_child_user.user_id,
+        assign_data=assign_dto
+    )
+
+    # Assert
+    mock_assessment_repo.create.assert_called_once() # Changed from .add
+    call_args = mock_assessment_repo.create.call_args[0][0]
+    assert isinstance(call_args, Assessment)
+    assert call_args.student_id == sample_child_user.user_id
+    assert call_args.reading_id == reading_id
+    assert call_args.assigned_by_parent_id == sample_parent_user.user_id
+    assert result_dto.assessment_id == created_assessment.assessment_id
+
+# === ListChildAssignmentsUseCase Tests ===
+@pytest.mark.asyncio
+async def test_list_child_assignments_success(
+    mock_assessment_repo: MagicMock,
+    mock_user_repo_for_parent: MagicMock,
+    mock_reading_repo: MagicMock, # Added
+    sample_parent_user: DomainUser,
+    sample_child_user: DomainUser
+):
+    # Arrange
+    mock_user_repo_for_parent.get_by_id.side_effect = [sample_parent_user, sample_child_user] # parent, then child for context
+    mock_user_repo_for_parent.is_parent_of_student.return_value = True
+
+    reading_id = uuid4()
+    sample_assessment = Assessment(
+        assessment_id=uuid4(), student_id=sample_child_user.user_id, reading_id=reading_id,
+        assigned_by_parent_id=sample_parent_user.user_id, status=AssessmentStatus.PENDING_AUDIO,
+        assessment_date=datetime.now(tz.tzutc()), updated_at=datetime.now(tz.tzutc())
+    )
+    mock_assessment_repo.list_by_child_and_assigner.return_value = ([sample_assessment], 1)
+    mock_reading_repo.get_by_id.return_value = Reading(reading_id=reading_id, title="Test Reading", content_text="...")
+
+
+    use_case = ListChildAssignmentsUseCase(
+        assessment_repository=mock_assessment_repo,
+        user_repository=mock_user_repo_for_parent,
+        reading_repository=mock_reading_repo # Added
+    )
+
+    # Act
+    result_paginated_dto = await use_case.execute(sample_parent_user.user_id, sample_child_user.user_id, 1, 10)
+
+    # Assert
+    mock_assessment_repo.list_by_child_and_assigner.assert_called_once_with(
+        student_id=sample_child_user.user_id, parent_id=sample_parent_user.user_id, page=1, size=10
+    )
+    assert len(result_paginated_dto.items) == 1
+    assert isinstance(result_paginated_dto.items[0], AssessmentListItemDTO)
+    assert result_paginated_dto.items[0].assessment_id == sample_assessment.assessment_id
+    assert result_paginated_dto.items[0].user_relationship_context == "Your Child"
+
+
+# === UpdateChildAssignmentUseCase Tests ===
+@pytest.mark.asyncio
+async def test_update_child_assignment_success(
+    mock_assessment_repo: MagicMock,
+    mock_user_repo_for_parent: MagicMock,
+    sample_parent_user: DomainUser,
+    sample_child_user: DomainUser
+):
+    # Arrange
+    assessment_id = uuid4()
+    update_dto = AssignmentUpdateDTO(due_date=date.today()) # due_date is no-op for now
+
+    sample_assessment = Assessment(
+        assessment_id=assessment_id, student_id=sample_child_user.user_id, reading_id=uuid4(),
+        assigned_by_parent_id=sample_parent_user.user_id, status=AssessmentStatus.PENDING_AUDIO
+    )
+    mock_user_repo_for_parent.get_by_id.return_value = sample_parent_user
+    mock_assessment_repo.get_by_id.return_value = sample_assessment
+    mock_assessment_repo.update.return_value = sample_assessment # Assume update returns the assessment
+
+    use_case = UpdateChildAssignmentUseCase(
+        assessment_repository=mock_assessment_repo,
+        user_repository=mock_user_repo_for_parent
+    )
+
+    # Act
+    result_dto = await use_case.execute(
+        parent_id=sample_parent_user.user_id,
+        child_id=sample_child_user.user_id,
+        assignment_id=assessment_id,
+        update_data=update_dto
+    )
+
+    # Assert
+    mock_assessment_repo.update.assert_called_once_with(sample_assessment)
+    assert isinstance(result_dto, AssessmentResponseDTO)
+    assert result_dto.assessment_id == assessment_id
+
+
+# === DeleteChildAssignmentUseCase Tests ===
+@pytest.mark.asyncio
+async def test_delete_child_assignment_success(
+    mock_assessment_repo: MagicMock,
+    mock_user_repo_for_parent: MagicMock,
+    sample_parent_user: DomainUser,
+    sample_child_user: DomainUser
+):
+    # Arrange
+    assessment_id = uuid4()
+    sample_assessment = Assessment(
+        assessment_id=assessment_id, student_id=sample_child_user.user_id, reading_id=uuid4(),
+        assigned_by_parent_id=sample_parent_user.user_id, status=AssessmentStatus.PENDING_AUDIO
+    )
+    mock_user_repo_for_parent.get_by_id.return_value = sample_parent_user
+    mock_assessment_repo.get_by_id.return_value = sample_assessment
+    mock_assessment_repo.delete.return_value = True # Assume delete returns True on success
+
+    use_case = DeleteChildAssignmentUseCase(
+        assessment_repository=mock_assessment_repo,
+        user_repository=mock_user_repo_for_parent
+    )
+
+    # Act
+    await use_case.execute(
+        parent_id=sample_parent_user.user_id,
+        child_id=sample_child_user.user_id,
+        assignment_id=assessment_id
+    )
+
+    # Assert
+    mock_assessment_repo.delete.assert_called_once_with(assessment_id)

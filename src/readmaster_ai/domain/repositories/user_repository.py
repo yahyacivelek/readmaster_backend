@@ -17,6 +17,11 @@ class UserRepository(ABC):
         pass
 
     @abstractmethod
+    async def create_user_with_role(self, user_dto: 'UserCreateDTO') -> DomainUser: # Added UserCreateDTO type hint
+        """Creates a new user with a specific role, potentially from a DTO."""
+        pass
+
+    @abstractmethod
     async def update(self, user: DomainUser) -> DomainUser:
         """Updates an existing user's details in the storage."""
         pass
@@ -34,6 +39,11 @@ class UserRepository(ABC):
     @abstractmethod
     async def is_parent_of_student(self, parent_id: UUID, student_id: UUID) -> bool:
         """Checks if a user is a parent of a given student."""
+        pass
+
+    @abstractmethod
+    async def get_student_ids_for_parent(self, parent_id: UUID) -> List[UUID]:
+        """Retrieves a list of student UUIDs linked to a specific parent ID."""
         pass
 
     # Add other methods as they become necessary, e.g.,

@@ -53,9 +53,12 @@ from readmaster_ai.application.use_cases.assessment_use_cases import (
     RequestAssessmentAudioUploadURLUseCase,
     ConfirmAudioUploadUseCase,
     SubmitQuizAnswersUseCase,
-    GetAssessmentResultDetailsUseCase, # Added
-    ListAssessmentsByReadingIdUseCase # Added
+    GetAssessmentResultDetailsUseCase,
+    ListAssessmentsByReadingIdUseCase
 )
+
+# Use Case Dependencies
+from readmaster_ai.presentation.dependencies.use_case_dependencies import get_list_assessments_by_reading_id_use_case # Added
 
 # Shared (Exceptions)
 from readmaster_ai.shared.exceptions import NotFoundException, ApplicationException
@@ -112,9 +115,7 @@ async def list_assessments_by_reading_id_endpoint(
     page: int = Query(1, ge=1, description="Page number for pagination."),
     size: int = Query(20, ge=1, le=100, description="Number of items per page."),
     current_user: DomainUser = Depends(get_current_user),
-    assessment_repo: AssessmentRepository = Depends(get_assessment_repo),
-    reading_repo: ReadingRepository = Depends(get_reading_repo),
-    user_repo: UserRepository = Depends(get_user_repo)
+    use_case: ListAssessmentsByReadingIdUseCase = Depends(get_list_assessments_by_reading_id_use_case) # Changed to use DI
 ):
     """
     Allows Teachers and Parents to list all assessments for a specific reading material,
@@ -129,16 +130,17 @@ async def list_assessments_by_reading_id_endpoint(
             detail="You do not have permission to access this resource."
         )
 
-    use_case = ListAssessmentsByReadingIdUseCase(
-        assessment_repo=assessment_repo,
-        reading_repo=reading_repo,
-        user_repo=user_repo
-    )
+    # use_case is now injected
+    # use_case = ListAssessmentsByReadingIdUseCase(
+    #     assessment_repo=assessment_repo,
+    #     reading_repo=reading_repo,
+    #     user_repo=user_repo
+    # )
 
     try:
         result_dto = await use_case.execute(
             reading_id=reading_id,
-            current_user=current_user,
+            current_user=current_user, # Pass the DomainUser object
             page=page,
             size=size
         )
@@ -146,7 +148,7 @@ async def list_assessments_by_reading_id_endpoint(
         return result_dto
     except NotFoundException as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
-    except ApplicationException as e:
+    except ApplicationException as e: # Includes ForbiddenException if raised by UC for role mismatch
         raise HTTPException(status_code=e.status_code if hasattr(e, 'status_code') else status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
         # Log error: print(f"Unexpected error in list_assessments_by_reading_id_endpoint: {e}")

@@ -17,6 +17,7 @@ class Assessment:
     student_id: UUID # FK
     reading_id: UUID # FK
     assigned_by_teacher_id: Optional[UUID] # FK, from ERD
+    assigned_by_parent_id: Optional[UUID] # FK
     audio_file_url: Optional[str]
     audio_duration: Optional[int] # In seconds, as per ERD
     status: AssessmentStatus
@@ -29,6 +30,7 @@ class Assessment:
     def __init__(self, student_id: UUID, reading_id: UUID, # student_id and reading_id are mandatory
                  assessment_id: Optional[UUID] = None,
                  assigned_by_teacher_id: Optional[UUID] = None,
+                 assigned_by_parent_id: Optional[UUID] = None,
                  audio_file_url: Optional[str] = None, audio_duration: Optional[int] = None,
                  status: AssessmentStatus = AssessmentStatus.PENDING_AUDIO,
                  assessment_date: Optional[datetime] = None,
@@ -38,6 +40,7 @@ class Assessment:
         self.student_id = student_id
         self.reading_id = reading_id
         self.assigned_by_teacher_id = assigned_by_teacher_id
+        self.assigned_by_parent_id = assigned_by_parent_id
         self.audio_file_url = audio_file_url
         self.audio_duration = audio_duration
         self.status = status

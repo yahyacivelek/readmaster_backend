@@ -53,7 +53,8 @@ def _assessment_model_to_domain(model: AssessmentModel) -> Optional[DomainAssess
         status=status_enum_member if status_enum_member else AssessmentStatus.ERROR, # Default to ERROR if conversion failed
         assessment_date=model.assessment_date,
         ai_raw_speech_to_text=model.ai_raw_speech_to_text,
-        updated_at=model.updated_at
+        updated_at=model.updated_at,
+        assigned_by_parent_id=model.assigned_by_parent_id # Added
         # result and quiz_answers are relationships, typically loaded separately or via specific use case logic
     )
 
@@ -83,7 +84,8 @@ class AssessmentRepositoryImpl(AssessmentRepository):
             status=assessment.status.value, # Convert Enum to its string value for DB
             assessment_date=assessment_date, # Use timezone-aware datetime
             ai_raw_speech_to_text=assessment.ai_raw_speech_to_text,
-            updated_at=updated_at # Use timezone-aware datetime
+            updated_at=updated_at, # Use timezone-aware datetime
+            assigned_by_parent_id=assessment.assigned_by_parent_id # Added
         )
         self.session.add(model)
         await self.session.flush()
@@ -224,3 +226,35 @@ class AssessmentRepositoryImpl(AssessmentRepository):
                 domain_assessments.append(domain_assessment)
 
         return domain_assessments, total_count
+
+    async def list_by_child_and_assigner(self, student_id: UUID, parent_id: UUID, page: int, size: int) -> Tuple[List[DomainAssessment], int]:
+        """Lists assessments for a specific child assigned by a specific parent."""
+        query_base = select(AssessmentModel).where(
+            AssessmentModel.student_id == student_id,
+            AssessmentModel.assigned_by_parent_id == parent_id
+        )
+
+        # Count statement
+        count_stmt = select(func.count(AssessmentModel.assessment_id)).select_from(query_base.order_by(None).alias("count_subquery"))
+        total_count_result = await self.session.execute(count_stmt)
+        total_count = total_count_result.scalar_one()
+
+        if total_count == 0:
+            return [], 0
+
+        # Main query for items
+        results_stmt = query_base.order_by(AssessmentModel.assessment_date.desc()).offset((page - 1) * size).limit(size)
+        result = await self.session.execute(results_stmt)
+        assessment_models = result.scalars().all()
+
+        domain_assessments = [_assessment_model_to_domain(model) for model in assessment_models if _assessment_model_to_domain(model) is not None]
+        return domain_assessments, total_count
+
+    async def delete(self, assessment_id: UUID) -> bool:
+        """Deletes an assessment by its ID."""
+        stmt = sqlalchemy_delete(AssessmentModel).where(AssessmentModel.assessment_id == assessment_id)
+        result = await self.session.execute(stmt)
+        # No explicit flush or commit here; handled by UoW or service layer
+        return result.rowcount > 0
+
+from sqlalchemy import delete as sqlalchemy_delete # Ensure this is imported at the top if not already

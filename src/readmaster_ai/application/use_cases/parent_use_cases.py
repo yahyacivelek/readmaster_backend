@@ -18,10 +18,22 @@ from readmaster_ai.domain.repositories.reading_repository import ReadingReposito
 
 
 # Application DTOs
-from readmaster_ai.application.dto.user_dtos import UserResponseDTO # For listing children
+from readmaster_ai.application.dto.user_dtos import UserResponseDTO, ParentChildCreateRequestDTO, UserCreateDTO
 from readmaster_ai.application.dto.progress_dtos import StudentProgressSummaryDTO
-from readmaster_ai.application.dto.assessment_dtos import AssessmentResultDetailDTO
-from readmaster_ai.presentation.schemas.user_schemas import ParentChildCreateRequestSchema # Input DTO
+from readmaster_ai.application.dto.assessment_dtos import (
+    AssessmentResultDetailDTO,
+    ParentAssignReadingRequestDTO,
+    AssessmentResponseDTO, # For assignment responses
+    AssignmentUpdateDTO,
+)
+from readmaster_ai.application.dto.assessment_list_dto import PaginatedAssessmentListResponseDTO, AssessmentListItemDTO, AssessmentStudentInfoDTO, AssessmentReadingInfoDTO
+
+
+# Domain Entities
+from readmaster_ai.domain.entities.assessment import Assessment # Added for new use cases
+
+# Value Objects
+from readmaster_ai.domain.value_objects.common_enums import AssessmentStatus # Added
 
 # Reused Use Cases for fetching detailed data
 from readmaster_ai.application.use_cases.progress_use_cases import GetStudentProgressSummaryUseCase
@@ -163,12 +175,12 @@ class GetChildAssessmentResultForParentUseCase:
             raise ApplicationException("Assessment does not belong to the specified child.", status_code=403)
 
 
-class CreateStudentByParentUseCase:
+class CreateChildAccountUseCase: # Renamed from CreateStudentByParentUseCase
     """Use case for an authenticated parent to create a new student account (their child)."""
-    def __init__(self, user_repo: UserRepository):
-        self.user_repo = user_repo
+    def __init__(self, user_repository: UserRepository): # Renamed user_repo to user_repository
+        self.user_repository = user_repository
 
-    async def execute(self, parent_user: DomainUser, child_data: ParentChildCreateRequestSchema) -> DomainUser:
+    async def execute(self, parent_user: DomainUser, child_data: ParentChildCreateRequestDTO) -> UserResponseDTO: # Changed child_data type and return type
         """
         Executes the student creation process by a parent.
 
@@ -177,7 +189,7 @@ class CreateStudentByParentUseCase:
             child_data: DTO containing data for the new student (child).
 
         Returns:
-            The created student DomainUser entity.
+            A UserResponseDTO for the created student.
 
         Raises:
             ForbiddenException: If the requesting user is not a parent.
@@ -186,34 +198,178 @@ class CreateStudentByParentUseCase:
         if parent_user.role != UserRole.PARENT:
             raise ForbiddenException("User is not authorized to create a child account.")
 
-        existing_student_by_email = await self.user_repo.get_by_email(child_data.email)
-        if existing_student_by_email:
-            raise ApplicationException("A user with this email already exists.", status_code=409) # Conflict
+        existing_user = await self.user_repository.get_by_email(child_data.email)
+        if existing_user:
+            raise ApplicationException(f"User with email {child_data.email} already exists.", status_code=409)
 
         hashed_password = pwd_context.hash(child_data.password)
 
-        # child_data.role is fixed to "student" by ParentChildCreateRequestSchema
-        # We use UserRole.STUDENT for the domain entity.
-        new_student_user = DomainUser(
-            user_id=uuid4(), # Generate new UUID for the student
+        # Using UserCreateDTO as an intermediary for user creation by repository
+        # The repository's create_user method should expect a User entity or a compatible DTO.
+        # For consistency, if user_repository.create_user_with_role exists and takes UserCreateDTO:
+        user_create_dto = UserCreateDTO(
             email=child_data.email,
-            password_hash=hashed_password,
+            password=hashed_password, # Store hashed password
             first_name=child_data.first_name,
             last_name=child_data.last_name,
-            role=UserRole.STUDENT, # Role is fixed to STUDENT
-            preferred_language=child_data.preferred_language if child_data.preferred_language else 'en',
-            # class_id will be None by default as parent is creating a general student account.
-            # Teacher can later add this student to a class.
+            preferred_language=child_data.preferred_language,
+            role=UserRole.STUDENT # Explicitly set role to student
+        )
+        # This assumes create_user_with_role or similar exists that takes UserCreateDTO
+        # If not, we'd map to DomainUser like the original code and call `self.user_repository.create()`
+        created_student_entity = await self.user_repository.create_user_with_role(user_create_dto)
+
+        # Link parent to child
+        await self.user_repository.link_parent_to_student(parent_id=parent_user.user_id, student_id=created_student_entity.user_id)
+
+        return UserResponseDTO.model_validate(created_student_entity)
+
+
+# Placeholder for BaseUseCase if common functionality is needed later
+class BaseUseCase: # Added placeholder
+    pass
+
+class ParentAssignReadingUseCase(BaseUseCase):
+    def __init__(self,
+                 assessment_repository: AssessmentRepository,
+                 user_repository: UserRepository,
+                 reading_repository: ReadingRepository):
+        self.assessment_repository = assessment_repository
+        self.user_repository = user_repository
+        self.reading_repository = reading_repository
+
+    async def execute(self, parent_user: DomainUser, child_id: UUID, assign_data: ParentAssignReadingRequestDTO) -> AssessmentResponseDTO:
+        if parent_user.role != UserRole.PARENT:
+            raise ForbiddenException("User is not authorized or not found.")
+
+        is_child = await self.user_repository.is_parent_of_student(parent_user.user_id, child_id)
+        if not is_child:
+            raise ForbiddenException("Student is not a child of this parent.")
+
+        reading = await self.reading_repository.get_by_id(assign_data.reading_id)
+        if not reading:
+            raise NotFoundException(resource_name="Reading", resource_id=str(assign_data.reading_id))
+
+        assessment = Assessment( # Domain entity
+            student_id=child_id,
+            reading_id=assign_data.reading_id,
+            assigned_by_parent_id=parent_user.user_id,
+            status=AssessmentStatus.PENDING_AUDIO,
+            # due_date from assign_data.due_date is ignored as Assessment entity doesn't have it.
         )
 
-        created_student = await self.user_repo.create(new_student_user)
+        await self.assessment_repository.create(assessment) # Changed add to create
+        return AssessmentResponseDTO.model_validate(assessment)
 
-        # Link the parent to the newly created student
-        # The relationship_type can be a predefined string.
-        await self.user_repo.link_parent_to_student(
+
+class ListChildAssignmentsUseCase(BaseUseCase):
+    def __init__(self,
+                 assessment_repository: AssessmentRepository,
+                 user_repository: UserRepository,
+                 reading_repository: ReadingRepository): # Added reading_repository for enriching items
+        self.assessment_repository = assessment_repository
+        self.user_repository = user_repository
+        self.reading_repository = reading_repository
+
+
+    async def execute(self, parent_user: DomainUser, child_id: UUID, page: int, size: int) -> PaginatedAssessmentListResponseDTO:
+        if parent_user.role != UserRole.PARENT:
+            raise ForbiddenException("User is not authorized or not found.")
+
+        is_child = await self.user_repository.is_parent_of_student(parent_user.user_id, child_id)
+        if not is_child:
+            raise ForbiddenException("Student is not a child of this parent.")
+
+        child_user = await self.user_repository.get_by_id(child_id)
+        if not child_user: # Should not happen if is_child passed, but good check
+            raise NotFoundException(resource_name="Child", resource_id=str(child_id))
+
+        assessments_page = await self.assessment_repository.list_by_child_and_assigner(
+            student_id=child_id,
             parent_id=parent_user.user_id,
-            student_id=created_student.user_id,
-            relationship_type="parent" # Or a more generic "guardian" if applicable
+            page=page,
+            size=size
         )
 
-        return created_student
+        items_dto: List[AssessmentListItemDTO] = []
+        for assessment_entity in assessments_page.items:
+            reading_info_dto = None
+            if assessment_entity.reading_id: # Should always be true for an assignment
+                reading = await self.reading_repository.get_by_id(assessment_entity.reading_id)
+                if reading:
+                    reading_info_dto = AssessmentReadingInfoDTO(reading_id=reading.reading_id, title=reading.title)
+
+            student_info_dto = AssessmentStudentInfoDTO(
+                student_id=child_user.user_id,
+                first_name=child_user.first_name,
+                last_name=child_user.last_name,
+                # grade: This would typically come from Class context, which parent-assigned readings might not have.
+                # For now, leave as None or derive if possible.
+                grade=None
+            )
+
+            items_dto.append(
+                AssessmentListItemDTO(
+                    assessment_id=assessment_entity.assessment_id,
+                    status=assessment_entity.status,
+                    assessment_date=assessment_entity.assessment_date,
+                    updated_at=assessment_entity.updated_at,
+                    student=student_info_dto,
+                    reading=reading_info_dto if reading_info_dto else AssessmentReadingInfoDTO(reading_id=assessment_entity.reading_id, title="Unknown Reading"),
+                    user_relationship_context="Your Child" # For parent view
+                )
+            )
+
+        return PaginatedAssessmentListResponseDTO(
+            items=items_dto,
+            page=assessments_page.page,
+            size=assessments_page.size,
+            total_count=assessments_page.total_count
+        )
+
+
+class UpdateChildAssignmentUseCase(BaseUseCase):
+    def __init__(self, assessment_repository: AssessmentRepository, user_repository: UserRepository):
+        self.assessment_repository = assessment_repository
+        self.user_repository = user_repository
+
+    async def execute(self, parent_user: DomainUser, child_id: UUID, assignment_id: UUID, update_data: AssignmentUpdateDTO) -> AssessmentResponseDTO:
+        if parent_user.role != UserRole.PARENT:
+            raise ForbiddenException("User is not authorized or not found.")
+
+        assessment = await self.assessment_repository.get_by_id(assignment_id)
+        if not assessment:
+            raise NotFoundException(resource_name="Assignment (Assessment)", resource_id=str(assignment_id))
+
+        if assessment.student_id != child_id or assessment.assigned_by_parent_id != parent_user.user_id:
+            raise ForbiddenException("User is not authorized to update this assignment.")
+
+        if update_data.due_date:
+            # Assessment entity does not have due_date yet. This is a no-op for now.
+            # assessment.due_date = update_data.due_date
+            pass
+
+        await self.assessment_repository.update(assessment) # Will save other changes if any were made to entity
+        return AssessmentResponseDTO.model_validate(assessment)
+
+
+class DeleteChildAssignmentUseCase(BaseUseCase):
+    def __init__(self, assessment_repository: AssessmentRepository, user_repository: UserRepository):
+        self.assessment_repository = assessment_repository
+        self.user_repository = user_repository
+
+    async def execute(self, parent_user: DomainUser, child_id: UUID, assignment_id: UUID) -> None:
+        if parent_user.role != UserRole.PARENT:
+            raise ForbiddenException("User is not authorized or not found.")
+
+        assessment = await self.assessment_repository.get_by_id(assignment_id)
+        if not assessment:
+            # If deleting a non-existent resource is fine (e.g. for idempotency), return None.
+            # For assignments, it's better to ensure it existed and belonged to them.
+            raise NotFoundException(resource_name="Assignment (Assessment)", resource_id=str(assignment_id))
+
+        if assessment.student_id != child_id or assessment.assigned_by_parent_id != parent_user.user_id:
+            raise ForbiddenException("User is not authorized to delete this assignment.")
+
+        await self.assessment_repository.delete(assessment_id)
+        return None

@@ -850,9 +850,9 @@ paths:
       description: |
         Allows authenticated Teachers and Parents to list all assessments for a specific reading material.
         The results are filtered based on the students/children they own or manage.
-        - **Teachers**: Will see assessments for students enrolled in their classes.
-        - **Parents**: Will see assessments for their linked children.
-        The `user_relationship_context` field in each assessment item provides context like the class name for a teacher or a generic "Your Child" for a parent.
+        - **Teachers**: Will see assessments for students enrolled in their classes. The `user_relationship_context` field will contain the class name.
+        - **Parents**: Will see assessments for their linked children. The `user_relationship_context` field will typically indicate 'Your Child'.
+        This endpoint is useful for tracking progress on assigned readings.
       operationId: list_assessments_by_reading_for_user_api_v1_assessments_reading__reading_id__get
       security:
         - OAuth2PasswordBearer: []
@@ -1298,7 +1298,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/UserCreateRequest'
+              $ref: '#/components/schemas/TeacherStudentCreateRequest'
       responses:
         '201':
           description: Student account created successfully.
@@ -1382,7 +1382,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/UserCreateRequest'
+              $ref: '#/components/schemas/ParentChildCreateRequest'
       responses:
         '201':
           description: Child account created successfully.
@@ -1396,6 +1396,173 @@ paths:
           description: Forbidden. Authenticated user is not a parent.
         '422':
           description: Validation Error. Invalid input data.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/parent/children/{child_id}/assignments:
+    post:
+      tags:
+        - Parent - Assignments
+      summary: Parent Assign Reading to Child
+      description: Allows an authenticated parent to assign a specific reading material to one of their linked children.
+      operationId: parent_assign_reading_to_child_api_v1_parent_children__child_id__assignments_post
+      security:
+        - OAuth2PasswordBearer: []
+      parameters:
+        - name: child_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The ID of the child (student) to whom the reading will be assigned.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ParentAssignReadingRequestDTO'
+      responses:
+        '201':
+          description: Assignment created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssignmentResponseDTO'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Child or Reading not found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    get:
+      tags:
+        - Parent - Assignments
+      summary: Parent List Child's Assignments
+      description: Retrieves a list of all readings assigned by the parent to a specific child.
+      operationId: parent_list_child_assignments_api_v1_parent_children__child_id__assignments_get
+      security:
+        - OAuth2PasswordBearer: []
+      parameters:
+        - name: child_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The ID of the child (student) whose assignments are to be listed.
+        # Add pagination parameters if applicable (page, size)
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AssignmentResponseDTO' # Or a more specific DTO for listing assignments
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Child not found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/parent/children/{child_id}/assignments/{assignment_id}:
+    put:
+      tags:
+        - Parent - Assignments
+      summary: Parent Update Child's Assignment
+      description: Allows an authenticated parent to update details (e.g., due date) of an existing assignment for their child.
+      operationId: parent_update_child_assignment_api_v1_parent_children__child_id__assignments__assignment_id__put
+      security:
+        - OAuth2PasswordBearer: []
+      parameters:
+        - name: child_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The ID of the child (student).
+        - name: assignment_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid # Assuming assignment_id is a UUID; adjust if it's an assessment_id
+          description: The ID of the assignment to update.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssignmentUpdateDTO'
+      responses:
+        '200':
+          description: Assignment updated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssignmentResponseDTO' # Or updated assignment details
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Child or Assignment not found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    delete:
+      tags:
+        - Parent - Assignments
+      summary: Parent Delete Child's Assignment
+      description: Allows an authenticated parent to delete a specific assignment for their child.
+      operationId: parent_delete_child_assignment_api_v1_parent_children__child_id__assignments__assignment_id__delete
+      security:
+        - OAuth2PasswordBearer: []
+      parameters:
+        - name: child_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The ID of the child (student).
+        - name: assignment_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid # Assuming assignment_id is a UUID
+          description: The ID of the assignment to delete.
+      responses:
+        '204':
+          description: Assignment deleted successfully. No content.
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Child or Assignment not found
+        '422':
+          description: Validation Error
           content:
             application/json:
               schema:
@@ -1741,6 +1908,11 @@ components:
               format: uuid
             - type: 'null'
           title: Assigned By Teacher Id
+        assigned_by_parent_id:
+          type: string
+          format: uuid
+          nullable: true
+          title: Assigned By Parent Id
       type: object
       required:
         - assessment_id
@@ -1800,6 +1972,11 @@ components:
               format: uuid
             - type: 'null'
           title: Assigned By Teacher Id
+        assigned_by_parent_id:
+          type: string
+          format: uuid
+          nullable: true
+          title: Assigned By Parent Id
         reading_title:
           anyOf:
             - type: string
@@ -1907,18 +2084,18 @@ components:
         - reading_id
       title: AssignReadingRequestDTO
       description: DTO for a teacher to assign a reading to students or a class.
-    AssignmentResponseDTO:
+    AssignmentResponseDTO: # This DTO might need to be more generic or have variants if used for parent assignments too
       properties:
         message:
           type: string
           title: Message
-          default: Reading assigned successfully.
-        created_assessments:
+          default: Reading assigned successfully. # Consider if this default is always true
+        created_assessments: # For parent assignment, this might be a single assessment
           items:
             $ref: '#/components/schemas/CreatedAssignmentInfoDTO'
-          type: array
+          type: array # For parent, this might not be an array, or an array of 1
           title: Created Assessments
-        skipped_students:
+        skipped_students: # Likely not applicable for parent assigning to one child
           anyOf:
             - items:
                 type: string
@@ -1927,9 +2104,24 @@ components:
             - type: 'null'
           title: Skipped Students
           description: List of student IDs for whom assessment creation was skipped (e.g., invalid ID, not a student).
+        # Consider adding fields specific to the assignment itself if needed, e.g., assignment_id, due_date
+        # For parent context, it might be useful to return the specific assessment_id if only one is created.
       type: object
       title: AssignmentResponseDTO
-      description: DTO for the response after a teacher assigns a reading.
+      description: DTO for the response after a reading assignment. Can be by teacher or parent.
+
+    AssignmentUpdateDTO:
+      type: object
+      properties:
+        due_date:
+          type: string
+          format: date
+          nullable: true
+          description: New due date for the assignment.
+        # Add other updatable fields if any, e.g., notes, status (if applicable)
+      title: AssignmentUpdateDTO
+      description: DTO for updating an existing assignment (e.g., by a parent for their child).
+
     ClassCreateDTO:
       properties:
         class_name:
@@ -2209,6 +2401,34 @@ components:
         - feedback
         - system
       title: NotificationType
+
+    PaginatedAssessmentListResponseDTO:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AssessmentListItemDTO'
+          title: Items
+        page:
+          type: integer
+          minimum: 1
+          title: Page
+        size:
+          type: integer
+          minimum: 1
+          title: Size
+        total_count:
+          type: integer
+          title: Total Count
+      required:
+        - items
+        - page
+        - size
+        - total_count
+      title: PaginatedAssessmentListResponseDTO
+      description: Paginated response for a list of assessments.
+
     PaginatedResponse_ClassResponseDTO_:
       properties:
         items:
@@ -2259,34 +2479,6 @@ components:
         - page
         - size
       title: PaginatedResponse[NotificationResponseDTO]
-
-    PaginatedAssessmentListResponseDTO:
-      type: object
-      properties:
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/AssessmentListItemDTO'
-          title: Items
-        page:
-          type: integer
-          minimum: 1
-          title: Page
-        size:
-          type: integer
-          minimum: 1
-          title: Size
-        total_count:
-          type: integer
-          title: Total Count
-      required:
-        - items
-        - page
-        - size
-        - total_count
-      title: PaginatedAssessmentListResponseDTO
-      description: Paginated response for a list of assessments.
-
     PaginatedResponse_ReadingResponseDTO_:
       properties:
         items:
@@ -2312,6 +2504,52 @@ components:
         - page
         - size
       title: PaginatedResponse[ReadingResponseDTO]
+
+    ParentAssignReadingRequestDTO:
+      type: object
+      properties:
+        reading_id:
+          type: string
+          format: uuid
+          description: The ID of the reading material to assign.
+        due_date:
+          type: string
+          format: date
+          nullable: true
+          description: Optional due date for the assignment.
+      required:
+        - reading_id
+      title: ParentAssignReadingRequestDTO
+      description: DTO for a parent to assign a reading to a specific child.
+
+    ParentChildCreateRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+        first_name:
+          type: string
+          nullable: true
+        last_name:
+          type: string
+          nullable: true
+        preferred_language:
+          type: string
+          nullable: true
+          default: 'en'
+        role:
+          type: string
+          enum: [student] # Fixed to student
+          default: student
+      required:
+        - email
+        - password
+      title: ParentChildCreateRequest
+      description: Request body for a parent to create a new child (student) account.
+
     QuizAnswerDTO:
       properties:
         question_id:
@@ -2760,7 +2998,7 @@ components:
           type: object
           title: Options
           description: 'Key-value pairs for options, e.g., {"A": "Option Text A", "B": "Option Text B"}.'
-        correct_option_id:
+        correct_option_id: # This should ideally be omitted for student view
           type: string
           title: Correct Option Id
           description: The key corresponding to the correct option in the options dictionary (e.g., "A").
@@ -2782,7 +3020,7 @@ components:
       required:
         - question_text
         - options
-        - correct_option_id
+        # - correct_option_id # Should not be required for student view
         - question_id
         - reading_id
       title: StudentQuizQuestionResponseDTO
@@ -2871,6 +3109,35 @@ components:
       description: |-
         DTO for updating an existing system configuration setting.
         The 'key' is typically part of the URL path, not the request body for an update.
+
+    TeacherStudentCreateRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+        first_name:
+          type: string
+          nullable: true
+        last_name:
+          type: string
+          nullable: true
+        preferred_language:
+          type: string
+          nullable: true
+          default: 'en'
+        role:
+          type: string
+          enum: [student] # Fixed to student
+          default: student
+      required:
+        - email
+        - password
+      title: TeacherStudentCreateRequest
+      description: Request body for a teacher to create a new student account.
+
     TokenResponse:
       properties:
         access_token:
@@ -3054,4 +3321,3 @@ components:
         password:
           scopes: {}
           tokenUrl: /api/v1/auth/login
-

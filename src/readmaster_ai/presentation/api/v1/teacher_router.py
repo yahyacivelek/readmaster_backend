@@ -36,12 +36,15 @@ from readmaster_ai.domain.repositories.notification_repository import Notificati
 # Infrastructure (Concrete Repositories for DI)
 from readmaster_ai.infrastructure.database.repositories.class_repository_impl import ClassRepositoryImpl
 from readmaster_ai.infrastructure.database.repositories.user_repository_impl import UserRepositoryImpl
+# For PasswordService DI # No longer needed here, handled in use_case_dependencies
+# from readmaster_ai.services.password_service import PasswordService
 from readmaster_ai.infrastructure.database.repositories.assessment_repository_impl import AssessmentRepositoryImpl
 from readmaster_ai.infrastructure.database.repositories.reading_repository_impl import ReadingRepositoryImpl
 from readmaster_ai.infrastructure.database.repositories.assessment_result_repository_impl import AssessmentResultRepositoryImpl
 from readmaster_ai.infrastructure.database.repositories.notification_repository_impl import NotificationRepositoryImpl # New
 
 # Application (Use Cases)
+# CreateStudentByTeacherUseCase will be imported via use_case_dependencies
 from readmaster_ai.application.use_cases.class_use_cases import (
     CreateClassUseCase, GetClassDetailsUseCase, ListClassesByTeacherUseCase,
     UpdateClassUseCase, DeleteClassUseCase, AddStudentToClassUseCase,
@@ -49,8 +52,12 @@ from readmaster_ai.application.use_cases.class_use_cases import (
 )
 from readmaster_ai.application.use_cases.assessment_use_cases import AssignReadingUseCase
 from readmaster_ai.application.use_cases.progress_use_cases import GetStudentProgressSummaryUseCase, GetClassProgressReportUseCase
-from readmaster_ai.application.use_cases.user_use_cases import CreateStudentByTeacherUseCase # New
+# from readmaster_ai.application.use_cases.user_use_cases import CreateStudentByTeacherUseCase # New - Will be from teacher_use_cases
+from readmaster_ai.application.use_cases.teacher_use_cases import CreateStudentByTeacherUseCase # Corrected import path
 from readmaster_ai.presentation.schemas.user_schemas import TeacherStudentCreateRequestSchema, UserResponse # New
+
+# Use Case Dependencies
+from readmaster_ai.presentation.dependencies.use_case_dependencies import get_create_student_by_teacher_use_case # Added
 
 # Shared (Exceptions)
 from readmaster_ai.shared.exceptions import NotFoundException, ApplicationException, ForbiddenException
@@ -65,11 +72,16 @@ router = APIRouter(
 def get_class_repo(session: AsyncSession = Depends(get_db)) -> ClassRepository: return ClassRepositoryImpl(session)
 def get_user_repo(session: AsyncSession = Depends(get_db)) -> UserRepository: return UserRepositoryImpl(session)
 
-# New DI for the CreateStudentByTeacherUseCase
-def get_create_student_by_teacher_use_case(
-    user_repo: UserRepository = Depends(get_user_repo)
-) -> CreateStudentByTeacherUseCase:
-    return CreateStudentByTeacherUseCase(user_repo=user_repo)
+# --- Service Dependency Providers ---
+# def get_password_service() -> PasswordService: # Moved to use_case_dependencies
+#     return PasswordService()
+
+# New DI for the CreateStudentByTeacherUseCase # Moved to use_case_dependencies
+# def get_create_student_by_teacher_use_case(
+#     user_repo: UserRepository = Depends(get_user_repo),
+#     password_service: PasswordService = Depends(get_password_service) # Added password_service
+# ) -> CreateStudentByTeacherUseCase:
+#     return CreateStudentByTeacherUseCase(user_repository=user_repo, password_service=password_service) # Pass to constructor
 
 def get_assessment_repo(session: AsyncSession = Depends(get_db)) -> AssessmentRepository: return AssessmentRepositoryImpl(session)
 def get_reading_repo(session: AsyncSession = Depends(get_db)) -> ReadingRepository: return ReadingRepositoryImpl(session)
@@ -235,17 +247,20 @@ async def teacher_create_student_account(
     """
     # Router-level dependency `require_role(UserRole.TEACHER)` should enforce teacher role.
     try:
+        # Map schema to DTO for the use case
+        student_dto = TeacherStudentCreateRequestDTO(**request_data.model_dump())
         # The use case already checks if current_teacher.role is TEACHER.
-        created_student_domain = await use_case.execute(teacher_user=current_teacher, student_data=request_data)
-        return UserResponse.model_validate(created_student_domain)
-    except ForbiddenException as e: # From use case if teacher_user.role is not TEACHER
+        created_student_user_response_dto = await use_case.execute(teacher_id=current_teacher.user_id, student_data=student_dto)
+        # Map DTO back to response schema
+        return UserResponse.model_validate(created_student_user_response_dto) # UserResponse is UserResponseSchema from imports
+    except InvalidInputError as e: # Specific exception from UC if email exists
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
+    except ForbiddenException as e:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
-    except ApplicationException as e: # Handles other errors like email already exists (409)
-        # The use case might use ApplicationException with status 403 for role check if ForbiddenException is not used there.
-        if hasattr(e, 'status_code') and e.status_code == 403:
+    except ApplicationException as e:
+        if hasattr(e, 'status_code') and e.status_code == 403: # Handle if UC raises ApplicationException for auth
              raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e.message if hasattr(e, 'message') else str(e)))
         raise HTTPException(status_code=e.status_code if hasattr(e, 'status_code') else 400, detail=str(e.message if hasattr(e, 'message') else str(e)))
     except Exception as e:
-        # Log unexpected errors
         print(f"Unexpected error in teacher_create_student_account: {e}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An unexpected error occurred while creating the student account.")

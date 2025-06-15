@@ -23,7 +23,8 @@ class AssessmentResponseBaseDTO(BaseModel):
     audio_file_url: Optional[str] = None # Using str, can be HttpUrl if validated as such upon upload completion
     audio_duration: Optional[int] = Field(None, description="Duration of the audio in seconds.")
     ai_raw_speech_to_text: Optional[str] = Field(None, description="Raw speech-to-text output from AI processing.")
-    assigned_by_teacher_id: Optional[UUID] = None # Added from ERD
+    assigned_by_teacher_id: Optional[UUID] = None
+    assigned_by_parent_id: Optional[UUID] = None # Added for parent assignments
 
 class AssessmentResponseDTO(AssessmentResponseBaseDTO):
     """
@@ -176,3 +177,22 @@ class AssignmentResponseDTO(BaseModel):
     message: str = "Reading assigned successfully."
     created_assessments: List[CreatedAssignmentInfoDTO] = Field(default_factory=list)
     skipped_students: Optional[List[UUID]] = Field(default_factory=list, description="List of student IDs for whom assessment creation was skipped (e.g., invalid ID, not a student).")
+
+
+# --- DTOs for Parent Assigning Readings ---
+
+class ParentAssignReadingRequestDTO(BaseModel):
+    reading_id: UUID = Field(..., description="The ID of the reading material to assign.")
+    due_date: Optional[date] = Field(None, description="Optional due date for the assignment.")
+
+    class Config:
+        from_attributes = True
+
+
+class AssignmentUpdateDTO(BaseModel): # Could be used by Teacher or Parent
+    """DTO for updating an existing assignment, e.g., its due date."""
+    due_date: Optional[date] = Field(None, description="New due date for the assignment.")
+    # Potentially other fields like notes, or status if assignments can be paused/resumed.
+
+    class Config:
+        from_attributes = True
