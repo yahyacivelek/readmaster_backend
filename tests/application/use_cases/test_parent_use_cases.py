@@ -31,7 +31,7 @@ from readmaster_ai.application.dto.progress_dtos import StudentProgressSummaryDT
 from readmaster_ai.application.dto.assessment_dtos import AssessmentResultDetailDTO, ParentAssignReadingRequestDTO, AssessmentResponseDTO, AssignmentUpdateDTO
 from readmaster_ai.application.dto.assessment_list_dto import PaginatedAssessmentListResponseDTO, AssessmentListItemDTO
 from readmaster_ai.shared.exceptions import ForbiddenException, NotFoundException, InvalidInputError
-from readmaster_ai.services.password_service import PasswordService # Added
+# from readmaster_ai.services.password_service import PasswordService # Addsed
 
 @pytest.fixture
 def mock_user_repo_for_parent() -> MagicMock: # Renamed fixture
@@ -320,7 +320,7 @@ async def test_create_child_account_success(
     mock_user_repo_for_parent.get_by_email.return_value = None # No existing user with this email
     mock_user_repo_for_parent.create_user_with_role.return_value = created_child_user
 
-    use_case = CreateChildAccountUseCase(user_repository=mock_user_repo_for_parent, password_service=mock_password_service)
+    use_case = CreateChildAccountUseCase(user_repository=mock_user_repo_for_parent) # , password_service=mock_password_service)
 
     # Act
     result_dto = await use_case.execute(parent_id=sample_parent_user.user_id, child_data=child_dto)
@@ -355,7 +355,7 @@ async def test_create_child_account_email_exists(
     mock_user_repo_for_parent.get_by_id.return_value = sample_parent_user
     mock_user_repo_for_parent.get_by_email.return_value = sample_child_user # Email already exists
 
-    use_case = CreateChildAccountUseCase(user_repository=mock_user_repo_for_parent, password_service=mock_password_service)
+    use_case = CreateChildAccountUseCase(user_repository=mock_user_repo_for_parent) # , password_service=mock_password_service)
 
     # Act & Assert
     with pytest.raises(InvalidInputError):

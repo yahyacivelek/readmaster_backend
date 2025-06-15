@@ -2,7 +2,7 @@
 API Router for Parent-specific operations, such as viewing children's progress.
 All endpoints in this router require PARENT role.
 """
-from fastapi import APIRouter, Depends, HTTPException, status, Path
+from fastapi import APIRouter, Depends, HTTPException, status, Path, Query
 from sqlalchemy.ext.asyncio import AsyncSession # For DI context
 from typing import List
 from uuid import UUID
@@ -46,7 +46,7 @@ from readmaster_ai.application.use_cases.parent_use_cases import (
     DeleteChildAssignmentUseCase,
 )
 # Presentation Schemas
-from readmaster_ai.presentation.schemas.user_schemas import ParentChildCreateRequestSchema, UserResponseSchema # Adjusted to UserResponseSchema
+from readmaster_ai.presentation.schemas.user_schemas import ParentChildCreateRequestSchema, UserResponse
 from readmaster_ai.presentation.schemas.assessment_schemas import (
     ParentAssignReadingRequestSchema,
     AssessmentResponseSchema,
@@ -225,7 +225,7 @@ async def parent_create_child_account( # Renamed function to match endpoint summ
         child_dto = ParentChildCreateRequestDTO(**request_schema.model_dump())
         created_child_user_dto = await use_case.execute(parent_user=current_parent, child_data=child_dto)
         # Map DTO back to response schema
-        return UserResponseSchema.model_validate(created_child_user_dto)
+        return UserResponse(**created_child_user_dto.dict())
     except InvalidInputError as e: # Specific exception from UC if email exists
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
     except ForbiddenException as e:

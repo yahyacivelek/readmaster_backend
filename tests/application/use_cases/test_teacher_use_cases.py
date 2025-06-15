@@ -8,8 +8,8 @@ from readmaster_ai.domain.entities.user import DomainUser
 from readmaster_ai.domain.value_objects.common_enums import UserRole
 from readmaster_ai.domain.repositories.user_repository import UserRepository
 from readmaster_ai.application.dto.user_dtos import TeacherStudentCreateRequestDTO, UserResponseDTO, UserCreateDTO
-from readmaster_ai.shared.exceptions import NotAuthorizedError, InvalidInputError
-from readmaster_ai.services.password_service import PasswordService
+from readmaster_ai.shared.exceptions import UnauthorizedException, ValidationException
+# from readmaster_ai.services.password_service import PasswordService
 
 @pytest.fixture
 def mock_user_repo_for_teacher() -> MagicMock:
@@ -58,7 +58,7 @@ async def test_create_student_by_teacher_success(
 
     use_case = CreateStudentByTeacherUseCase(
         user_repository=mock_user_repo_for_teacher,
-        password_service=mock_password_service_for_teacher
+        # password_service=mock_password_service_for_teacher
     )
 
     # Act
@@ -96,11 +96,11 @@ async def test_create_student_by_teacher_unauthorized(
 
     use_case = CreateStudentByTeacherUseCase(
         user_repository=mock_user_repo_for_teacher,
-        password_service=mock_password_service_for_teacher
+        # password_service=mock_password_service_for_teacher
     )
 
     # Act & Assert
-    with pytest.raises(NotAuthorizedError):
+    with pytest.raises(UnauthorizedException):
         await use_case.execute(teacher_id=sample_teacher_user.user_id, student_data=student_data_dto)
 
 @pytest.mark.asyncio
@@ -118,9 +118,9 @@ async def test_create_student_by_teacher_email_exists(
 
     use_case = CreateStudentByTeacherUseCase(
         user_repository=mock_user_repo_for_teacher,
-        password_service=mock_password_service_for_teacher
+        # password_service=mock_password_service_for_teacher
     )
 
     # Act & Assert
-    with pytest.raises(InvalidInputError):
+    with pytest.raises(ValidationException):
         await use_case.execute(teacher_id=sample_teacher_user.user_id, student_data=student_data_dto)

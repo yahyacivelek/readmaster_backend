@@ -32,7 +32,7 @@ from readmaster_ai.application.use_cases.assessment_use_cases import ListAssessm
 
 
 # Service dependencies (e.g., PasswordService)
-from readmaster_ai.services.password_service import PasswordService # Assuming this path
+# from readmaster_ai.services.password_service import PasswordService # Assuming this path
 # from readmaster_ai.application.services.password_service import PasswordService # Alternative path
 
 # --- Repository Dependency Providers ---
@@ -50,18 +50,18 @@ def get_reading_repository(session: AsyncSession = Depends(get_db)) -> ReadingRe
 #     return SQLAParentStudentLinkRepositoryImpl(session)
 
 # --- Service Dependency Providers ---
-def get_password_service() -> PasswordService:
-    return PasswordService()
+# def get_password_service() -> PasswordService:
+#     return PasswordService()
 
 
 # --- Parent Use Case Dependency Providers ---
 
 def get_create_child_account_use_case(
     user_repo: UserRepository = Depends(get_user_repository),
-    password_service: PasswordService = Depends(get_password_service)
+    # password_service: PasswordService = Depends(get_password_service)
     # parent_student_link_repo: IParentStudentLinkRepository = Depends(get_parent_student_link_repository) # If separate
 ) -> CreateChildAccountUseCase:
-    return CreateChildAccountUseCase(user_repository=user_repo, password_service=password_service) # , parent_student_link_repository=parent_student_link_repo)
+    return CreateChildAccountUseCase(user_repository=user_repo) # , parent_student_link_repository=parent_student_link_repo)
 
 def get_parent_assign_reading_use_case(
     assessment_repo: AssessmentRepository = Depends(get_assessment_repository),
@@ -108,9 +108,9 @@ def get_delete_child_assignment_use_case(
 
 def get_create_student_by_teacher_use_case(
     user_repo: UserRepository = Depends(get_user_repository),
-    password_service: PasswordService = Depends(get_password_service)
+    # password_service: PasswordService = Depends(get_password_service)
 ) -> CreateStudentByTeacherUseCase:
-    return CreateStudentByTeacherUseCase(user_repository=user_repo, password_service=password_service)
+    return CreateStudentByTeacherUseCase(user_repository=user_repo) # , password_service=password_service)
 
 
 # --- Assessment Use Case Dependency Providers ---
