@@ -49,6 +49,8 @@ from readmaster_ai.application.use_cases.class_use_cases import (
 )
 from readmaster_ai.application.use_cases.assessment_use_cases import AssignReadingUseCase
 from readmaster_ai.application.use_cases.progress_use_cases import GetStudentProgressSummaryUseCase, GetClassProgressReportUseCase
+from readmaster_ai.application.use_cases.user_use_cases import CreateStudentByTeacherUseCase # New
+from readmaster_ai.presentation.schemas.user_schemas import TeacherStudentCreateRequestSchema, UserResponse # New
 
 # Shared (Exceptions)
 from readmaster_ai.shared.exceptions import NotFoundException, ApplicationException, ForbiddenException
@@ -62,6 +64,13 @@ router = APIRouter(
 # --- Dependency Provider Functions for Repositories ---
 def get_class_repo(session: AsyncSession = Depends(get_db)) -> ClassRepository: return ClassRepositoryImpl(session)
 def get_user_repo(session: AsyncSession = Depends(get_db)) -> UserRepository: return UserRepositoryImpl(session)
+
+# New DI for the CreateStudentByTeacherUseCase
+def get_create_student_by_teacher_use_case(
+    user_repo: UserRepository = Depends(get_user_repo)
+) -> CreateStudentByTeacherUseCase:
+    return CreateStudentByTeacherUseCase(user_repo=user_repo)
+
 def get_assessment_repo(session: AsyncSession = Depends(get_db)) -> AssessmentRepository: return AssessmentRepositoryImpl(session)
 def get_reading_repo(session: AsyncSession = Depends(get_db)) -> ReadingRepository: return ReadingRepositoryImpl(session)
 def get_assessment_result_repo(session: AsyncSession = Depends(get_db)) -> AssessmentResultRepository: return AssessmentResultRepositoryImpl(session)
@@ -205,3 +214,38 @@ async def teacher_get_student_progress_summary(student_id: UUID, teacher: Domain
     except Exception as e:
         print(f"Unexpected error generating student progress summary: {e}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An error occurred while generating the student progress summary.")
+
+
+@router.post(
+    "/students", # Path based on swagger: /api/v1/teacher/students
+    response_model=UserResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Teacher Create Student Account", # From Swagger
+    tags=["Teacher - Account Management"] # New tag as per Swagger
+)
+async def teacher_create_student_account(
+    request_data: TeacherStudentCreateRequestSchema,
+    current_teacher: DomainUser = Depends(get_current_user), # Ensures authenticated and gets teacher user
+    use_case: CreateStudentByTeacherUseCase = Depends(get_create_student_by_teacher_use_case)
+):
+    """
+    Allows an authenticated teacher to create a new student account.
+    The created user's role will be 'student'. This student can then be
+    added to a class using another endpoint.
+    """
+    # Router-level dependency `require_role(UserRole.TEACHER)` should enforce teacher role.
+    try:
+        # The use case already checks if current_teacher.role is TEACHER.
+        created_student_domain = await use_case.execute(teacher_user=current_teacher, student_data=request_data)
+        return UserResponse.model_validate(created_student_domain)
+    except ForbiddenException as e: # From use case if teacher_user.role is not TEACHER
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
+    except ApplicationException as e: # Handles other errors like email already exists (409)
+        # The use case might use ApplicationException with status 403 for role check if ForbiddenException is not used there.
+        if hasattr(e, 'status_code') and e.status_code == 403:
+             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e.message if hasattr(e, 'message') else str(e)))
+        raise HTTPException(status_code=e.status_code if hasattr(e, 'status_code') else 400, detail=str(e.message if hasattr(e, 'message') else str(e)))
+    except Exception as e:
+        # Log unexpected errors
+        print(f"Unexpected error in teacher_create_student_account: {e}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An unexpected error occurred while creating the student account.")

@@ -38,8 +38,10 @@ from readmaster_ai.infrastructure.database.repositories.reading_repository_impl 
 
 # Application (Use Cases)
 from readmaster_ai.application.use_cases.parent_use_cases import (
-    ListParentChildrenUseCase, GetChildProgressForParentUseCase, GetChildAssessmentResultForParentUseCase
+    ListParentChildrenUseCase, GetChildProgressForParentUseCase, GetChildAssessmentResultForParentUseCase,
+    CreateStudentByParentUseCase # New
 )
+from readmaster_ai.presentation.schemas.user_schemas import ParentChildCreateRequestSchema, UserResponse # New
 # Reused Use Cases (needed for DI into parent use cases)
 from readmaster_ai.application.use_cases.progress_use_cases import GetStudentProgressSummaryUseCase
 from readmaster_ai.application.use_cases.assessment_use_cases import GetAssessmentResultDetailsUseCase
@@ -62,6 +64,13 @@ def get_student_answer_repo(session: AsyncSession = Depends(get_db)) -> StudentQ
 def get_quiz_question_repo(session: AsyncSession = Depends(get_db)) -> QuizQuestionRepository: return QuizQuestionRepositoryImpl(session)
 
 # --- DI for Reused Use Cases (which are dependencies of Parent Use Cases) ---
+
+# New DI for the CreateStudentByParentUseCase
+def get_create_student_by_parent_use_case(
+    user_repo: UserRepository = Depends(get_user_repo)
+) -> CreateStudentByParentUseCase:
+    return CreateStudentByParentUseCase(user_repo=user_repo)
+
 def get_student_progress_summary_uc(
     user_repo: UserRepository = Depends(get_user_repo),
     assessment_repo: AssessmentRepository = Depends(get_assessment_repo),
@@ -155,3 +164,35 @@ async def parent_get_child_assessment_result_details(
 #         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 #     except Exception as e:
 #         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Error linking child.")
+
+
+@router.post(
+    "/children", # Path based on swagger: /api/v1/parent/children
+    response_model=UserResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Parent Create Child Account", # From Swagger
+    tags=["Parent - Account Management"] # New tag as per Swagger
+)
+async def parent_create_child_account(
+    request_data: ParentChildCreateRequestSchema,
+    current_parent: DomainUser = Depends(get_current_user), # Ensures authenticated and gets parent user
+    use_case: CreateStudentByParentUseCase = Depends(get_create_student_by_parent_use_case)
+):
+    """
+    Allows an authenticated parent to create a new student account that is
+    automatically linked as their child. The created user's role will be 'student'.
+    """
+    # The router-level dependency `require_role(UserRole.PARENT)` should already enforce parent role.
+    # If not, an explicit check can be added here, but it's better handled by the dependency.
+    try:
+        # The use case already checks if current_parent.role is PARENT.
+        created_student_domain = await use_case.execute(parent_user=current_parent, child_data=request_data)
+        return UserResponse.model_validate(created_student_domain)
+    except ForbiddenException as e: # From use case if parent_user.role is not PARENT
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
+    except ApplicationException as e: # Handles other errors like email already exists (409)
+        raise HTTPException(status_code=e.status_code if hasattr(e, 'status_code') else 400, detail=str(e.message if hasattr(e, 'message') else str(e)))
+    except Exception as e:
+        # Log unexpected errors
+        print(f"Unexpected error in parent_create_child_account: {e}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An unexpected error occurred while creating the child account.")
