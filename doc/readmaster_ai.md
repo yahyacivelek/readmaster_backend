@@ -745,6 +745,101 @@ class UserResponse(BaseModel):
         from_attributes = True # Formerly orm_mode
 ```
 
+### GET /api/v1/assessments/reading/{reading_id}
+
+*   **Summary**: List Assessments by Reading ID for Teachers/Parents
+*   **Description**:
+    Allows authenticated Teachers and Parents to list all assessments associated with a specific reading material. The results are strictly filtered based on the students or children they own or manage within the system.
+    *   **Teachers**: Will see assessments only for students who are enrolled in their classes. The `user_relationship_context` field in the response will typically show the class name through which the teacher is associated with the student for this assessment.
+    *   **Parents**: Will see assessments only for their linked children. The `user_relationship_context` will indicate this relationship (e.g., "Your Child").
+    The endpoint supports pagination.
+*   **Authenticated Roles**: `Teacher`, `Parent`
+*   **Path Parameters**:
+    *   `reading_id` (UUID, required): The ID of the reading material.
+*   **Query Parameters**:
+    *   `page` (integer, optional, default: 1, min: 1): Page number for pagination.
+    *   `size` (integer, optional, default: 20, min: 1, max: 100): Number of items per page.
+*   **Successful Response (200 OK)**:
+    Returns a paginated list of assessments.
+    *   **`PaginatedAssessmentListResponseDTO`**:
+        *   `items`: (Array of `AssessmentListItemDTO`)
+            *   `assessment_id`: (UUID) ID of the assessment.
+            *   `status`: (Enum string) Current status of the assessment (e.g., "completed", "pending_audio").
+            *   `assessment_date`: (ISO 8601 datetime)
+            *   `updated_at`: (ISO 8601 datetime)
+            *   `student`: (`AssessmentStudentInfoDTO`)
+                *   `student_id`: (UUID)
+                *   `first_name`: (string, nullable)
+                *   `last_name`: (string, nullable)
+                *   `grade`: (string, nullable) - Student's grade, if available.
+            *   `reading`: (`AssessmentReadingInfoDTO`)
+                *   `reading_id`: (UUID)
+                *   `title`: (string, nullable) - Title of the reading material.
+            *   `user_relationship_context`: (string, nullable) - Context of the user's relationship to the student (e.g., "Class Name" for teacher, "Your Child" for parent).
+        *   `page`: (integer) Current page number.
+        *   `size`: (integer) Number of items per page.
+        *   `total_count`: (integer) Total number of accessible assessments for this reading.
+
+    *   **Example (Teacher View)**:
+        ```json
+        {
+          "items": [
+            {
+              "assessment_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+              "status": "completed",
+              "assessment_date": "2024-01-15T10:30:00Z",
+              "updated_at": "2024-01-15T11:00:00Z",
+              "student": {
+                "student_id": "abf85f64-5717-4562-b3fc-2c963f66a123",
+                "first_name": "John",
+                "last_name": "Doe",
+                "grade": "Grade 5"
+              },
+              "reading": {
+                "reading_id": "cfd85f64-5717-4562-b3fc-2c963f66ab45",
+                "title": "The Adventures of Tom Sawyer"
+              },
+              "user_relationship_context": "English - Grade 5A"
+            }
+          ],
+          "page": 1,
+          "size": 1,
+          "total_count": 1
+        }
+        ```
+    *   **Example (Parent View)**:
+        ```json
+        {
+          "items": [
+            {
+              "assessment_id": "3fa85f64-5717-4562-b3fc-2c963f66afa7",
+              "status": "pending_audio",
+              "assessment_date": "2024-01-16T09:00:00Z",
+              "updated_at": "2024-01-16T09:00:00Z",
+              "student": {
+                "student_id": "bcf85f64-5717-4562-b3fc-2c963f66a456",
+                "first_name": "Jane",
+                "last_name": "Doe",
+                "grade": null
+              },
+              "reading": {
+                "reading_id": "cfd85f64-5717-4562-b3fc-2c963f66ab45",
+                "title": "The Adventures of Tom Sawyer"
+              },
+              "user_relationship_context": "Your Child"
+            }
+          ],
+          "page": 1,
+          "size": 1,
+          "total_count": 1
+        }
+        ```
+*   **Error Responses**:
+    *   `401 Unauthorized`: If the authentication token is missing or invalid.
+    *   `403 Forbidden`: If the authenticated user's role is not `Teacher` or `Parent`.
+    *   `404 Not Found`: If the specified `reading_id` does not exist.
+    *   `422 Validation Error`: If query parameters are invalid (e.g., `page` or `size` out of bounds, `reading_id` not a UUID).
+
 ### 4.6. File Handling Strategy
 
 * **Upload Strategy**: The frontend requests a pre-signed URL from the backend to upload audio files directly to a cloud storage bucket. This avoids proxying large files through the backend service.

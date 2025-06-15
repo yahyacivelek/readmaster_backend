@@ -64,6 +64,11 @@ __all__ = [
     "SystemConfigBaseDTO",
     "SystemConfigResponseDTO",
     "SystemConfigUpdateDTO",
+    # Assessment List DTOs
+    "AssessmentStudentInfoDTO",
+    "AssessmentReadingInfoDTO",
+    "AssessmentListItemDTO",
+    "PaginatedAssessmentListResponseDTO",
 ]
 
 from .assessment_dtos import (
@@ -103,4 +108,10 @@ from .system_config_dtos import ( # Added
     SystemConfigBaseDTO,
     SystemConfigResponseDTO,
     SystemConfigUpdateDTO
+)
+from .assessment_list_dto import (
+    AssessmentStudentInfoDTO,
+    AssessmentReadingInfoDTO,
+    AssessmentListItemDTO,
+    PaginatedAssessmentListResponseDTO,
 )

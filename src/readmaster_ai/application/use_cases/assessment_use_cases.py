@@ -3,11 +3,12 @@ Use cases related to Assessment operations.
 """
 from uuid import UUID, uuid4
 from datetime import datetime, timezone
-from typing import List, Optional # Added List, Optional for AssignReadingUseCase
+from typing import List, Optional, Tuple # Added Tuple for ListAssessmentsByReadingIdUseCase
 
 # Domain Entities and Repositories
 from readmaster_ai.domain.entities.assessment import Assessment as DomainAssessment
-from readmaster_ai.domain.value_objects.common_enums import AssessmentStatus as AssessmentStatusEnum, UserRole, NotificationType as NotificationTypeEnum
+# AssessmentStatus is imported by AssessmentListItemDTO, but if used directly:
+from readmaster_ai.domain.value_objects.common_enums import AssessmentStatus, UserRole, NotificationType as NotificationTypeEnum
 from readmaster_ai.domain.entities.user import DomainUser
 from readmaster_ai.domain.repositories.assessment_repository import AssessmentRepository
 from readmaster_ai.domain.repositories.reading_repository import ReadingRepository
@@ -33,6 +34,13 @@ from readmaster_ai.application.dto.assessment_dtos import (
     AssignReadingRequestDTO, # For AssignReadingUseCase
     CreatedAssignmentInfoDTO, # For AssignReadingUseCase
     AssignmentResponseDTO # For AssignReadingUseCase
+)
+# DTOs for ListAssessmentsByReadingIdUseCase
+from readmaster_ai.application.dto.assessment_list_dto import (
+    PaginatedAssessmentListResponseDTO,
+    AssessmentListItemDTO,
+    AssessmentStudentInfoDTO,
+    AssessmentReadingInfoDTO
 )
 from readmaster_ai.application.interfaces.file_storage_interface import FileStorageInterface # For RequestUploadURL
 from readmaster_ai.infrastructure.ai.tasks import process_assessment_audio_task # For ConfirmUpload
@@ -249,4 +257,72 @@ class AssignReadingUseCase:
         return AssignmentResponseDTO(
             created_assessments=created_assessments_info, skipped_students=skipped_students_info,
             message=f"Reading assigned. {len(created_assessments_info)} created. {len(skipped_students_info)} skipped."
+        )
+
+class ListAssessmentsByReadingIdUseCase:
+    def __init__(self,
+                 assessment_repo: AssessmentRepository,
+                 reading_repo: ReadingRepository,
+                 user_repo: UserRepository):
+        self.assessment_repo = assessment_repo
+        self.reading_repo = reading_repo
+        self.user_repo = user_repo
+
+    async def execute(self, reading_id: UUID, current_user: DomainUser, page: int, size: int) -> PaginatedAssessmentListResponseDTO:
+        # Step 1: Validate Reading Material
+        reading = await self.reading_repo.get_by_id(reading_id)
+        if not reading:
+            raise NotFoundException(f"Reading material with ID {reading_id} not found.")
+
+        # Step 2: Fetch Assessments from Repository
+        assessments_tuple: Tuple[List[DomainAssessment], int] = await self.assessment_repo.list_by_reading_id(
+            reading_id=reading_id,
+            user_id=current_user.user_id,
+            role=current_user.role,
+            page=page,
+            size=size
+        )
+        domain_assessments, total_count = assessments_tuple
+
+        # Step 3: Map to DTOs
+        list_item_dtos: List[AssessmentListItemDTO] = []
+        for assessment in domain_assessments:
+            student_entity = await self.user_repo.get_by_id(assessment.student_id)
+            student_info = AssessmentStudentInfoDTO(
+                student_id=assessment.student_id,
+                first_name=student_entity.first_name if student_entity else None,
+                last_name=student_entity.last_name if student_entity else None,
+                grade=None # Placeholder: Grade determination needs more context/queries
+            )
+
+            # Reading info comes from the already fetched 'reading' object
+            reading_info = AssessmentReadingInfoDTO(
+                reading_id=reading.reading_id,
+                title=reading.title
+            )
+
+            user_relationship_context = None
+            if current_user.role == UserRole.TEACHER:
+                # Placeholder: Specific class name requires more complex logic or repo changes
+                user_relationship_context = "Student in one of your classes"
+            elif current_user.role == UserRole.PARENT:
+                user_relationship_context = "Your Child"
+
+            list_item_dtos.append(
+                AssessmentListItemDTO(
+                    assessment_id=assessment.assessment_id,
+                    status=assessment.status, # This should be AssessmentStatus enum
+                    assessment_date=assessment.assessment_date,
+                    updated_at=assessment.updated_at,
+                    student=student_info,
+                    reading=reading_info,
+                    user_relationship_context=user_relationship_context
+                )
+            )
+
+        return PaginatedAssessmentListResponseDTO(
+            items=list_item_dtos,
+            page=page,
+            size=size,
+            total_count=total_count
         )

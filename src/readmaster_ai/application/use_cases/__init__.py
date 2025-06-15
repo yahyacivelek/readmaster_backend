@@ -33,7 +33,8 @@ from .assessment_use_cases import (
     ConfirmAudioUploadUseCase,
     SubmitQuizAnswersUseCase,
     GetAssessmentResultDetailsUseCase,
-    AssignReadingUseCase
+    AssignReadingUseCase,
+    ListAssessmentsByReadingIdUseCase, # Added new use case
 )
 from .class_use_cases import (
     CreateClassUseCase, # Note: Also in user_use_cases for some reason in provided content, but should be distinct
@@ -90,6 +91,7 @@ __all__ = [
     "SubmitQuizAnswersUseCase",
     "GetAssessmentResultDetailsUseCase",
     "AssignReadingUseCase",
+    "ListAssessmentsByReadingIdUseCase", # Added new use case
     # Class Use Cases
     # "CreateClassUseCase", # Already listed if it's the same one. Assuming class_use_cases.CreateClassUseCase is the one.
     "GetClassDetailsUseCase",

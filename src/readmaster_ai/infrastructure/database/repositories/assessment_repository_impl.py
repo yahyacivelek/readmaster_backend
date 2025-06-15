@@ -1,19 +1,29 @@
 """
 Concrete implementation of the AssessmentRepository interface using SQLAlchemy.
 """
-from typing import Optional, List # List might be needed for future list methods
+from typing import Optional, List, Tuple # List might be needed for future list methods, Tuple for new method
 from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, update as sqlalchemy_update
+from sqlalchemy import select, update as sqlalchemy_update, func, and_, or_, desc, join
+from sqlalchemy.orm import aliased
 from datetime import datetime, timezone
 
 from readmaster_ai.domain.entities.assessment import Assessment as DomainAssessment
 # Import AssessmentStatus from domain entities for consistency with the entity definition
 from readmaster_ai.domain.entities.assessment import AssessmentStatus
+from readmaster_ai.domain.value_objects.common_enums import UserRole # Added UserRole
 # Or, if you prefer the centralized one for all repository/infra logic:
 # from readmaster_ai.domain.value_objects.common_enums import AssessmentStatus as AssessmentStatusEnum
 from readmaster_ai.domain.repositories.assessment_repository import AssessmentRepository
-from readmaster_ai.infrastructure.database.models import AssessmentModel
+from readmaster_ai.infrastructure.database.models import ( # Added more models
+    AssessmentModel,
+    UserModel,
+    ReadingModel,
+    ClassModel,
+    StudentsClassesAssociation,
+    TeachersClassesAssociation,
+    ParentsStudentsAssociation
+)
 from readmaster_ai.shared.exceptions import ApplicationException # For error handling
 
 def _assessment_model_to_domain(model: AssessmentModel) -> Optional[DomainAssessment]:
@@ -152,3 +162,65 @@ class AssessmentRepositoryImpl(AssessmentRepository):
 
         domain_assessments = [_assessment_model_to_domain(m) for m in models if _assessment_model_to_domain(m) is not None]
         return domain_assessments
+
+    async def list_by_reading_id(self, reading_id: UUID, user_id: UUID, role: UserRole, page: int, size: int) -> Tuple[List[DomainAssessment], int]:
+        """
+        Retrieves assessments associated with a specific reading_id,
+        filtered by the user's role and ownership, with pagination.
+        Returns a tuple containing a list of Assessment entities and the total count.
+        """
+        StudentModel = aliased(UserModel, name="student_user")
+
+        query = (
+            select(AssessmentModel)
+            .join(ReadingModel, AssessmentModel.reading_id == ReadingModel.reading_id)
+            .join(StudentModel, AssessmentModel.student_id == StudentModel.user_id)
+        )
+
+        if role == UserRole.TEACHER:
+            query = (
+                query
+                .join(StudentsClassesAssociation, StudentModel.user_id == StudentsClassesAssociation.c.student_id)
+                .join(ClassModel, StudentsClassesAssociation.c.class_id == ClassModel.class_id)
+                .join(TeachersClassesAssociation, ClassModel.class_id == TeachersClassesAssociation.c.class_id)
+                .where(TeachersClassesAssociation.c.teacher_id == user_id)
+            )
+        elif role == UserRole.PARENT:
+            query = (
+                query
+                .join(ParentsStudentsAssociation, StudentModel.user_id == ParentsStudentsAssociation.c.student_id)
+                .where(ParentsStudentsAssociation.c.parent_id == user_id)
+            )
+        else:
+            # For roles not explicitly handled (e.g. ADMIN, STUDENT),
+            # this specific listing logic might not apply or might need different rules.
+            # Returning empty list as a safe default if no specific logic for the role.
+            # Or, this could be an assertion error if such roles should not reach this point.
+            return [], 0
+
+        # Common filter for reading_id, applied after role-specific joins
+        query = query.where(AssessmentModel.reading_id == reading_id)
+
+        # Count query: built from the filtered query before ordering and pagination
+        # Clearing any previous order_by is important for count subqueries.
+        count_stmt = select(func.count(AssessmentModel.assessment_id)).select_from(query.order_by(None).subquery())
+
+        total_count_result = await self.session.execute(count_stmt)
+        total_count = total_count_result.scalar_one()
+
+        if total_count == 0:
+            return [], 0
+
+        # Main query for items with ordering and pagination
+        query = query.order_by(AssessmentModel.assessment_date.desc()).offset((page - 1) * size).limit(size)
+
+        result = await self.session.execute(query)
+        assessment_models = result.scalars().all()
+
+        domain_assessments = []
+        for model in assessment_models:
+            domain_assessment = _assessment_model_to_domain(model)
+            if domain_assessment:
+                domain_assessments.append(domain_assessment)
+
+        return domain_assessments, total_count

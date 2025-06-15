@@ -2,9 +2,10 @@
 Abstract repository interface for Assessment entities.
 """
 from abc import ABC, abstractmethod
-from typing import Optional, List
+from typing import Optional, List, Tuple
 from uuid import UUID
 from readmaster_ai.domain.entities.assessment import Assessment
+from readmaster_ai.domain.value_objects.common_enums import UserRole
 
 class AssessmentRepository(ABC):
     """
@@ -42,5 +43,14 @@ class AssessmentRepository(ABC):
             student_ids: A list of student UUIDs.
         Returns:
             A list of Assessment domain entities.
+        """
+        pass
+
+    @abstractmethod
+    async def list_by_reading_id(self, reading_id: UUID, user_id: UUID, role: UserRole, page: int, size: int) -> Tuple[List[Assessment], int]:
+        """
+        Retrieves assessments associated with a specific reading_id,
+        filtered by the user's role and ownership, with pagination.
+        Returns a tuple containing a list of Assessment entities and the total count.
         """
         pass

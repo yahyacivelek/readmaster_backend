@@ -1,7 +1,8 @@
 """
-API Router for Assessment related operations, primarily initiated by students.
+API Router for Assessment related operations, including student-initiated actions
+and teacher/parent views.
 """
-from fastapi import APIRouter, Depends, HTTPException, status, Path
+from fastapi import APIRouter, Depends, HTTPException, status, Path, Query # Added Query
 from sqlalchemy.ext.asyncio import AsyncSession # Not directly used, but good for context if DI changes
 from uuid import UUID
 
@@ -10,6 +11,7 @@ from readmaster_ai.infrastructure.database.config import get_db
 
 # Domain (Entities for type hinting)
 from readmaster_ai.domain.entities.user import DomainUser
+from readmaster_ai.domain.value_objects.common_enums import UserRole # Added UserRole
 
 # Presentation (Dependencies, DTOs from Application)
 from readmaster_ai.presentation.dependencies.auth_deps import get_current_user
@@ -23,6 +25,7 @@ from readmaster_ai.application.dto.assessment_dtos import (
     QuizSubmissionResponseDTO,
     AssessmentResultDetailDTO # Added
 )
+from readmaster_ai.application.dto.assessment_list_dto import PaginatedAssessmentListResponseDTO # Added
 
 # Repositories (Abstract for DI)
 from readmaster_ai.domain.repositories.assessment_repository import AssessmentRepository
@@ -30,11 +33,13 @@ from readmaster_ai.domain.repositories.reading_repository import ReadingReposito
 from readmaster_ai.domain.repositories.quiz_question_repository import QuizQuestionRepository # Added
 from readmaster_ai.domain.repositories.student_quiz_answer_repository import StudentQuizAnswerRepository # Added
 from readmaster_ai.domain.repositories.assessment_result_repository import AssessmentResultRepository # Added
+from readmaster_ai.domain.repositories.user_repository import UserRepository # Added
 
 
 # Infrastructure (Concrete Repositories for DI)
 from readmaster_ai.infrastructure.database.repositories.assessment_repository_impl import AssessmentRepositoryImpl
 from readmaster_ai.infrastructure.database.repositories.reading_repository_impl import ReadingRepositoryImpl
+from readmaster_ai.infrastructure.database.repositories.user_repository_impl import UserRepositoryImpl # Added
 from readmaster_ai.application.interfaces.file_storage_interface import FileStorageInterface
 from readmaster_ai.infrastructure.file_storage.local_storage import LocalFileStorageService
 from readmaster_ai.infrastructure.database.repositories.quiz_question_repository_impl import QuizQuestionRepositoryImpl # Added
@@ -48,7 +53,8 @@ from readmaster_ai.application.use_cases.assessment_use_cases import (
     RequestAssessmentAudioUploadURLUseCase,
     ConfirmAudioUploadUseCase,
     SubmitQuizAnswersUseCase,
-    GetAssessmentResultDetailsUseCase # Added
+    GetAssessmentResultDetailsUseCase, # Added
+    ListAssessmentsByReadingIdUseCase # Added
 )
 
 # Shared (Exceptions)
@@ -56,7 +62,7 @@ from readmaster_ai.shared.exceptions import NotFoundException, ApplicationExcept
 
 router = APIRouter(
     prefix="/assessments",
-    tags=["Assessments (Student)"], # Tagging for student-initiated assessment actions
+    tags=["Assessments"], # Generalized tag
     dependencies=[Depends(get_current_user)] # All assessment routes require user authentication
 )
 
@@ -90,6 +96,64 @@ def get_assessment_result_repo(session: AsyncSession = Depends(get_db)) -> Asses
     """Dependency provider for AssessmentResultRepository."""
     return AssessmentResultRepositoryImpl(session)
 
+def get_user_repo(session: AsyncSession = Depends(get_db)) -> UserRepository: # Added
+    """Dependency provider for UserRepository."""
+    return UserRepositoryImpl(session)
+
+
+@router.get(
+    "/reading/{reading_id}",
+    response_model=PaginatedAssessmentListResponseDTO,
+    summary="List Assessments by Reading ID for Teachers/Parents",
+    # dependencies=[Depends(get_current_user)] # Already on router
+)
+async def list_assessments_by_reading_id_endpoint(
+    reading_id: UUID = Path(..., description="The ID of the reading material."),
+    page: int = Query(1, ge=1, description="Page number for pagination."),
+    size: int = Query(20, ge=1, le=100, description="Number of items per page."),
+    current_user: DomainUser = Depends(get_current_user),
+    assessment_repo: AssessmentRepository = Depends(get_assessment_repo),
+    reading_repo: ReadingRepository = Depends(get_reading_repo),
+    user_repo: UserRepository = Depends(get_user_repo)
+):
+    """
+    Allows Teachers and Parents to list all assessments for a specific reading material,
+    filtered by students/children they own/manage.
+
+    - **Teachers**: See assessments for students in their classes for this reading.
+    - **Parents**: See assessments for their children for this reading.
+    """
+    if current_user.role not in [UserRole.TEACHER, UserRole.PARENT]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have permission to access this resource."
+        )
+
+    use_case = ListAssessmentsByReadingIdUseCase(
+        assessment_repo=assessment_repo,
+        reading_repo=reading_repo,
+        user_repo=user_repo
+    )
+
+    try:
+        result_dto = await use_case.execute(
+            reading_id=reading_id,
+            current_user=current_user,
+            page=page,
+            size=size
+        )
+        # An empty list is an acceptable response if no permissible data found.
+        return result_dto
+    except NotFoundException as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except ApplicationException as e:
+        raise HTTPException(status_code=e.status_code if hasattr(e, 'status_code') else status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except Exception as e:
+        # Log error: print(f"Unexpected error in list_assessments_by_reading_id_endpoint: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An unexpected error occurred while listing assessments."
+        )
 
 @router.post("", response_model=AssessmentResponseDTO, status_code=status.HTTP_201_CREATED)
 async def start_new_assessment(

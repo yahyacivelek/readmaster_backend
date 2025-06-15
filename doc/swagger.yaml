@@ -841,6 +841,110 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+
+  /api/v1/assessments/reading/{reading_id}:
+    get:
+      tags:
+        - Assessments # Matches the updated router tag
+      summary: List Assessments by Reading ID for Teachers/Parents
+      description: |
+        Allows authenticated Teachers and Parents to list all assessments for a specific reading material.
+        The results are filtered based on the students/children they own or manage.
+        - **Teachers**: Will see assessments for students enrolled in their classes.
+        - **Parents**: Will see assessments for their linked children.
+        The `user_relationship_context` field in each assessment item provides context like the class name for a teacher or a generic "Your Child" for a parent.
+      operationId: list_assessments_by_reading_for_user_api_v1_assessments_reading__reading_id__get
+      security:
+        - OAuth2PasswordBearer: []
+      parameters:
+        - name: reading_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            title: Reading Id
+          description: The ID of the reading material for which to list assessments.
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+            title: Page
+          description: Page number for pagination.
+        - name: size
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100 # Consistent with other paginated endpoints
+            default: 20
+            title: Size
+          description: Number of items per page.
+      responses:
+        '200':
+          description: Successful Response. Returns a paginated list of assessments.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedAssessmentListResponseDTO'
+              examples:
+                teacher_view:
+                  summary: Example for a Teacher
+                  value:
+                    items:
+                      - assessment_id: "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+                        status: "completed"
+                        assessment_date: "2024-01-15T10:30:00Z"
+                        updated_at: "2024-01-15T11:00:00Z"
+                        student:
+                          student_id: "abf85f64-5717-4562-b3fc-2c963f66a123"
+                          first_name: "John"
+                          last_name: "Doe"
+                          grade: "Grade 5"
+                        reading:
+                          reading_id: "cfd85f64-5717-4562-b3fc-2c963f66ab45"
+                          title: "The Adventures of Tom Sawyer"
+                        user_relationship_context: "English - Grade 5A"
+                    page: 1
+                    size: 1
+                    total_count: 1
+                parent_view:
+                  summary: Example for a Parent
+                  value:
+                    items:
+                      - assessment_id: "3fa85f64-5717-4562-b3fc-2c963f66afa7"
+                        status: "pending_audio"
+                        assessment_date: "2024-01-16T09:00:00Z"
+                        updated_at: "2024-01-16T09:00:00Z"
+                        student:
+                          student_id: "bcf85f64-5717-4562-b3fc-2c963f66a456"
+                          first_name: "Jane"
+                          last_name: "Doe"
+                          grade: null
+                        reading:
+                          reading_id: "cfd85f64-5717-4562-b3fc-2c963f66ab45"
+                          title: "The Adventures of Tom Sawyer"
+                        user_relationship_context: "Your Child"
+                    page: 1
+                    size: 1
+                    total_count: 1
+        '401':
+          description: Unauthorized. Invalid or missing authentication token.
+        '403':
+          description: Forbidden. Authenticated user is not a Teacher or Parent, or does not have permissions for this reading's assessments.
+        '404':
+          description: Not Found. The specified `reading_id` does not exist.
+        '422':
+          description: Validation Error. Invalid parameter format (e.g., `reading_id` is not a valid UUID, or pagination parameters are out of bounds).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError' # Assumes HTTPValidationError is already defined
+
   /api/v1/teacher/classes:
     post:
       tags:
@@ -1537,6 +1641,59 @@ components:
         - status
       title: AssessmentAttemptSummaryDTO
       description: Summary of a single assessment attempt for progress tracking views.
+
+    AssessmentListItemDTO:
+      type: object
+      properties:
+        assessment_id:
+          type: string
+          format: uuid
+          title: Assessment Id
+        status:
+          $ref: '#/components/schemas/AssessmentStatus' # Assumes AssessmentStatus is already defined
+        assessment_date:
+          type: string
+          format: date-time
+          title: Assessment Date
+        updated_at:
+          type: string
+          format: date-time
+          title: Updated At
+        student:
+          $ref: '#/components/schemas/AssessmentStudentInfoDTO'
+        reading:
+          $ref: '#/components/schemas/AssessmentReadingInfoDTO'
+        user_relationship_context:
+          type: string
+          nullable: true
+          title: User Relationship Context
+          description: Describes the user's relationship to the student (e.g., class name for teachers, 'Your Child' for parents).
+      required:
+        - assessment_id
+        - status
+        - assessment_date
+        - updated_at
+        - student
+        - reading
+      title: AssessmentListItemDTO
+      description: Represents a single assessment item in a list, tailored for teacher/parent view.
+
+    AssessmentReadingInfoDTO:
+      type: object
+      properties:
+        reading_id:
+          type: string
+          format: uuid
+          title: Reading Id
+        title:
+          type: string
+          nullable: true
+          title: Reading Title
+      required:
+        - reading_id
+      title: AssessmentReadingInfoDTO
+      description: Basic information about the reading material of the assessment.
+
     AssessmentResponseDTO:
       properties:
         assessment_id:
@@ -1681,6 +1838,32 @@ components:
       description: |-
         Comprehensive DTO for displaying detailed assessment results to a student.
         Inherits common assessment fields from AssessmentResponseBaseDTO.
+
+    AssessmentStudentInfoDTO:
+      type: object
+      properties:
+        student_id:
+          type: string
+          format: uuid
+          title: Student Id
+        first_name:
+          type: string
+          nullable: true
+          title: First Name
+        last_name:
+          type: string
+          nullable: true
+          title: Last Name
+        grade:
+          type: string
+          nullable: true
+          title: Grade
+          description: Grade level of the student, if available (e.g., from class context).
+      required:
+        - student_id
+      title: AssessmentStudentInfoDTO
+      description: Basic information about the student who took the assessment.
+
     AssessmentStatus:
       type: string
       enum:
@@ -2076,6 +2259,34 @@ components:
         - page
         - size
       title: PaginatedResponse[NotificationResponseDTO]
+
+    PaginatedAssessmentListResponseDTO:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AssessmentListItemDTO'
+          title: Items
+        page:
+          type: integer
+          minimum: 1
+          title: Page
+        size:
+          type: integer
+          minimum: 1
+          title: Size
+        total_count:
+          type: integer
+          title: Total Count
+      required:
+        - items
+        - page
+        - size
+        - total_count
+      title: PaginatedAssessmentListResponseDTO
+      description: Paginated response for a list of assessments.
+
     PaginatedResponse_ReadingResponseDTO_:
       properties:
         items:

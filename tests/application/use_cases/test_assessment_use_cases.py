@@ -392,3 +392,138 @@ async def test_get_assessment_result_details_not_completed(
         await use_case.execute(sample_assessment.assessment_id, sample_student_user)
     assert "results not ready. status: processing" in exc_info.value.message.lower()
     assert exc_info.value.status_code == 400
+
+
+# === ListAssessmentsByReadingIdUseCase Tests ===
+
+# Placeholder for actual imports, adjust as per your project structure
+# from readmaster_ai.application.use_cases.assessment_use_cases import ListAssessmentsByReadingIdUseCase
+# from readmaster_ai.domain.entities.user import DomainUser # Already imported
+# from readmaster_ai.domain.value_objects.common_enums import UserRole # Already imported
+# from readmaster_ai.domain.entities.reading import Reading as DomainReading # Already imported
+# from readmaster_ai.domain.entities.assessment import Assessment as DomainAssessment # Already imported
+# from readmaster_ai.application.dto.assessment_list_dto import PaginatedAssessmentListResponseDTO # Needs to be added or ensure it's covered by other DTO imports
+# from readmaster_ai.shared.exceptions import NotFoundException # Already imported
+# from readmaster_ai.domain.value_objects.common_enums import AssessmentStatus # Already imported
+# from datetime import datetime # Already imported
+
+# It's good practice to also import the DTOs for this specific use case if not already broadly imported
+from readmaster_ai.application.dto.assessment_list_dto import (
+    PaginatedAssessmentListResponseDTO,
+    AssessmentListItemDTO,
+    AssessmentStudentInfoDTO,
+    AssessmentReadingInfoDTO
+)
+
+
+@pytest.mark.asyncio
+async def test_list_assessments_by_reading_id_use_case_teacher_success():
+    mock_assessment_repo = AsyncMock(spec=AssessmentRepository)
+    mock_reading_repo = AsyncMock(spec=ReadingRepository)
+    mock_user_repo = AsyncMock(spec=UserRepository) # Assuming UserRepository is imported
+
+    # Setup Mocks:
+    teacher_user = DomainUser(user_id=uuid4(), email="teacher@test.com", role=UserRole.TEACHER,
+                              first_name="Teacher", last_name="User")
+    reading_entity = DomainReading(reading_id=uuid4(), title="Test Reading", language="en", added_by_admin_id=uuid4())
+    student_entity = DomainUser(user_id=uuid4(), first_name="Test", last_name="Student", role=UserRole.STUDENT,
+                                email="student@test.com")
+    assessment_entity = DomainAssessment(
+        assessment_id=uuid4(), student_id=student_entity.user_id, reading_id=reading_entity.reading_id,
+        status=AssessmentStatusEnum.COMPLETED, assessment_date=datetime.now(timezone.utc), updated_at=datetime.now(timezone.utc)
+    )
+
+    mock_reading_repo.get_by_id.return_value = reading_entity
+    mock_assessment_repo.list_by_reading_id.return_value = ([assessment_entity], 1)
+    mock_user_repo.get_by_id.return_value = student_entity
+
+    use_case = ListAssessmentsByReadingIdUseCase(mock_assessment_repo, mock_reading_repo, mock_user_repo)
+    result = await use_case.execute(reading_id=reading_entity.reading_id, current_user=teacher_user, page=1, size=10)
+
+    # Assertions:
+    mock_reading_repo.get_by_id.assert_called_once_with(reading_entity.reading_id)
+    mock_assessment_repo.list_by_reading_id.assert_called_once_with(
+        reading_id=reading_entity.reading_id,
+        user_id=teacher_user.user_id,
+        role=teacher_user.role,
+        page=1,
+        size=10
+    )
+    mock_user_repo.get_by_id.assert_called_once_with(student_entity.user_id)
+
+    assert isinstance(result, PaginatedAssessmentListResponseDTO)
+    assert result.total_count == 1
+    assert len(result.items) == 1
+    assert result.items[0].student.first_name == "Test"
+    assert result.items[0].reading.title == "Test Reading"
+    assert result.items[0].user_relationship_context == "Student in one of your classes"
+    # pass # Replace with actual assertions
+
+@pytest.mark.asyncio
+async def test_list_assessments_by_reading_id_use_case_parent_success():
+    mock_assessment_repo = AsyncMock(spec=AssessmentRepository)
+    mock_reading_repo = AsyncMock(spec=ReadingRepository)
+    mock_user_repo = AsyncMock(spec=UserRepository)
+
+    parent_user = DomainUser(user_id=uuid4(), email="parent@test.com", role=UserRole.PARENT,
+                             first_name="Parent", last_name="User")
+    reading_entity = DomainReading(reading_id=uuid4(), title="Test Reading Parent", language="en", added_by_admin_id=uuid4())
+    child_entity = DomainUser(user_id=uuid4(), first_name="Child", last_name="Student", role=UserRole.STUDENT,
+                              email="child@test.com")
+    assessment_entity = DomainAssessment(
+        assessment_id=uuid4(), student_id=child_entity.user_id, reading_id=reading_entity.reading_id,
+        status=AssessmentStatusEnum.COMPLETED, assessment_date=datetime.now(timezone.utc), updated_at=datetime.now(timezone.utc)
+    )
+
+    mock_reading_repo.get_by_id.return_value = reading_entity
+    mock_assessment_repo.list_by_reading_id.return_value = ([assessment_entity], 1)
+    mock_user_repo.get_by_id.return_value = child_entity
+
+    use_case = ListAssessmentsByReadingIdUseCase(mock_assessment_repo, mock_reading_repo, mock_user_repo)
+    result = await use_case.execute(reading_id=reading_entity.reading_id, current_user=parent_user, page=1, size=10)
+
+    assert isinstance(result, PaginatedAssessmentListResponseDTO)
+    assert result.total_count == 1
+    assert len(result.items) == 1
+    assert result.items[0].student.first_name == "Child"
+    assert result.items[0].reading.title == "Test Reading Parent"
+    assert result.items[0].user_relationship_context == "Your Child"
+    # pass
+
+@pytest.mark.asyncio
+async def test_list_assessments_by_reading_id_use_case_reading_not_found():
+    mock_assessment_repo = AsyncMock(spec=AssessmentRepository)
+    mock_reading_repo = AsyncMock(spec=ReadingRepository)
+    mock_user_repo = AsyncMock(spec=UserRepository)
+
+    teacher_user = DomainUser(user_id=uuid4(), email="teacher@test.com", role=UserRole.TEACHER,
+                              first_name="Teacher", last_name="User")
+    mock_reading_repo.get_by_id.return_value = None # Simulate reading not found
+
+    use_case = ListAssessmentsByReadingIdUseCase(mock_assessment_repo, mock_reading_repo, mock_user_repo)
+
+    with pytest.raises(NotFoundException) as exc_info:
+       await use_case.execute(reading_id=uuid4(), current_user=teacher_user, page=1, size=10)
+    assert "Reading material with ID" in str(exc_info.value) # Check for part of the message
+    # pass
+
+@pytest.mark.asyncio
+async def test_list_assessments_by_reading_id_use_case_empty_results(mock_assessment_repo, mock_reading_repo, mock_user_repo):
+    teacher_user = DomainUser(user_id=uuid4(), email="teacher@test.com", role=UserRole.TEACHER,
+                              first_name="Teacher", last_name="User")
+    reading_entity = DomainReading(reading_id=uuid4(), title="Empty Reading", language="en", added_by_admin_id=uuid4())
+
+    mock_reading_repo.get_by_id.return_value = reading_entity
+    mock_assessment_repo.list_by_reading_id.return_value = ([], 0) # No assessments found
+
+    use_case = ListAssessmentsByReadingIdUseCase(mock_assessment_repo, mock_reading_repo, mock_user_repo)
+    result = await use_case.execute(reading_id=reading_entity.reading_id, current_user=teacher_user, page=1, size=10)
+
+    assert isinstance(result, PaginatedAssessmentListResponseDTO)
+    assert result.total_count == 0
+    assert len(result.items) == 0
+    mock_user_repo.get_by_id.assert_not_called() # Should not be called if no assessments
+    # pass
+
+# Add more tests for N+1 problem check (if user_repo.get_by_id is called multiple times for same student),
+# student_entity not found by user_repo.get_by_id, etc.
