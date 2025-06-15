@@ -521,6 +521,39 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/admin/users/{user_id}:
+    delete:
+      tags:
+        - Admin Management
+      summary: Admin Deletes User
+      description: Allows an authenticated admin to permanently delete a user account (student, parent, or teacher). This is a hard delete operation.
+      operationId: admin_delete_user_api_v1_admin_users__user_id__delete
+      security:
+        - OAuth2PasswordBearer: []
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          description: The ID of the user to delete.
+          schema:
+            type: string
+            format: uuid
+            title: User Id # Added title for consistency
+      responses:
+        '204':
+          description: Successful deletion. No content returned.
+        '401':
+          description: Unauthorized. Invalid or missing authentication token.
+        '403':
+          description: Forbidden. Authenticated user is not an admin.
+        '404':
+          description: Not Found. The specified user_id does not exist.
+        '422':
+          description: Validation Error. Invalid user_id format.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /api/v1/readings:
     get:
       tags:
@@ -1147,6 +1180,38 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/teacher/students:
+    post:
+      tags:
+        - Teacher - Account Management
+      summary: Teacher Create Student Account
+      description: Allows an authenticated teacher to create a new student account.
+      operationId: teacher_create_student_account_api_v1_teacher_students_post
+      security:
+        - OAuth2PasswordBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserCreateRequest'
+      responses:
+        '201':
+          description: Student account created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '401':
+          description: Unauthorized. Invalid or missing authentication token.
+        '403':
+          description: Forbidden. Authenticated user is not a teacher.
+        '422':
+          description: Validation Error. Invalid input data.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /api/v1/parent/my-children:
     get:
       tags:
@@ -1166,6 +1231,71 @@ paths:
                 title: Response Parent List My Children Api V1 Parent My Children Get
       security:
         - OAuth2PasswordBearer: []
+  /api/v1/parent/my-children/{child_student_id}:
+    delete:
+      tags:
+        - Parent - Child Monitoring
+      summary: Parent Unlinks Child
+      description: Allows an authenticated parent to unlink a child (student) from their account. This does not delete the child's user account but removes the parent-child association.
+      operationId: parent_unlink_child_api_v1_parent_my_children__child_student_id__delete
+      security:
+        - OAuth2PasswordBearer: []
+      parameters:
+        - name: child_student_id
+          in: path
+          required: true
+          description: The ID of the child (student) to unlink.
+          schema:
+            type: string
+            format: uuid
+            title: Child Student Id # Added title for consistency
+      responses:
+        '204':
+          description: Successful unlinking. No content returned.
+        '401':
+          description: Unauthorized. Invalid or missing authentication token.
+        '403':
+          description: Forbidden. Authenticated user is not a parent or not linked to this child.
+        '404':
+          description: Not Found. The specified child_student_id does not exist or is not linked to this parent.
+        '422':
+          description: Validation Error. Invalid child_student_id format.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/parent/children:
+    post:
+      tags:
+        - Parent - Account Management
+      summary: Parent Create Child Account
+      description: Allows an authenticated parent to create a new student account linked to them.
+      operationId: parent_create_child_account_api_v1_parent_children_post
+      security:
+        - OAuth2PasswordBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserCreateRequest'
+      responses:
+        '201':
+          description: Child account created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '401':
+          description: Unauthorized. Invalid or missing authentication token.
+        '403':
+          description: Forbidden. Authenticated user is not a parent.
+        '422':
+          description: Validation Error. Invalid input data.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /api/v1/parent/children/{child_student_id}/progress:
     get:
       tags:
@@ -2713,3 +2843,4 @@ components:
         password:
           scopes: {}
           tokenUrl: /api/v1/auth/login
+
