@@ -16,7 +16,7 @@ from readmaster_ai.domain.value_objects.common_enums import UserRole
 
 # Presentation (Dependencies, DTOs from Application)
 from readmaster_ai.presentation.dependencies.auth_deps import get_current_user, require_role
-from readmaster_ai.application.dto.user_dtos import UserResponseDTO
+from readmaster_ai.application.dto.user_dtos import UserResponseDTO, ParentChildCreateRequestDTO
 from readmaster_ai.application.dto.progress_dtos import StudentProgressSummaryDTO
 from readmaster_ai.application.dto.assessment_dtos import AssessmentResultDetailDTO
 
@@ -146,11 +146,17 @@ async def parent_get_child_progress_summary(
     child_student_id: UUID = Path(..., description="The ID of the child (student) whose progress is to be viewed."),
     parent: DomainUser = Depends(get_current_user),
     user_repo: UserRepository = Depends(get_user_repo),
-    # All repos for student_progress_uc are injected via its DI function
-    student_progress_uc_instance: GetStudentProgressSummaryUseCase = Depends(get_student_progress_summary_uc)
+    assessment_repo: AssessmentRepository = Depends(get_assessment_repo),
+    result_repo: AssessmentResultRepository = Depends(get_assessment_result_repo),
+    reading_repo: ReadingRepository = Depends(get_reading_repo)
 ):
     """Allows a parent to view the progress summary of one of their linked children."""
-    use_case = GetChildProgressForParentUseCase(user_repo, student_progress_uc_instance)
+    use_case = GetChildProgressForParentUseCase(
+        user_repo=user_repo,
+        assessment_repo=assessment_repo,
+        result_repo=result_repo,
+        reading_repo=reading_repo
+    )
     try:
         return await use_case.execute(parent, child_student_id)
     except NotFoundException as e:
@@ -226,12 +232,10 @@ async def parent_create_child_account( # Renamed function to match endpoint summ
         created_child_user_dto = await use_case.execute(parent_user=current_parent, child_data=child_dto)
         # Map DTO back to response schema
         return UserResponse(**created_child_user_dto.dict())
-    except InvalidInputError as e: # Specific exception from UC if email exists
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
-    except ForbiddenException as e:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
     except ApplicationException as e:
         raise HTTPException(status_code=e.status_code if hasattr(e, 'status_code') else 400, detail=str(e.message if hasattr(e, 'message') else str(e)))
+    except ForbiddenException as e:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
     except Exception as e:
         print(f"Unexpected error in parent_create_child_account: {e}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An unexpected error occurred.")
