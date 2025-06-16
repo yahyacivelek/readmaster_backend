@@ -132,8 +132,12 @@ class GetStudentProgressSummaryUseCase:
             # Example: if not await auth_service.can_teacher_view_student(teacher, student_id):
             #    raise ForbiddenException("Teacher not authorized for this student's progress.")
             pass # Assuming for now teacher has access if they query.
-        elif requesting_user.role != UserRole.ADMIN: # If not teacher and not admin
-             raise ForbiddenException("User not authorized to view this student's progress.")
+        elif requesting_user.role == UserRole.PARENT:
+            # Check if this parent has access to the student
+            if not await self.user_repo.is_parent_of_student(requesting_user.user_id, student_id):
+                raise ForbiddenException("Parent not authorized to view this student's progress.")
+        elif requesting_user.role != UserRole.ADMIN: # If not teacher, parent, or admin
+            raise ForbiddenException("User not authorized to view this student's progress.")
 
         return await self._compile_summary_for_student(student_user)
 

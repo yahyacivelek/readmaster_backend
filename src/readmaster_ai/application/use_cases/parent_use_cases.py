@@ -220,7 +220,11 @@ class CreateChildAccountUseCase: # Renamed from CreateStudentByParentUseCase
         created_student_entity = await self.user_repository.create_user_with_role(user_create_dto)
 
         # Link parent to child
-        await self.user_repository.link_parent_to_student(parent_id=parent_user.user_id, student_id=created_student_entity.user_id)
+        await self.user_repository.link_parent_to_student(
+            parent_id=parent_user.user_id,
+            student_id=created_student_entity.user_id,
+            relationship_type="parent"
+        )
 
         return UserResponseDTO.model_validate(created_student_entity)
 

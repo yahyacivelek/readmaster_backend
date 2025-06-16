@@ -4,8 +4,7 @@ Concrete implementation of the UserRepository interface using SQLAlchemy.
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from typing import Optional, List
-from uuid import UUID
-
+from uuid import UUID, uuid4
 from readmaster_ai.domain.entities.user import DomainUser
 # UserRole is needed for converting between domain and model
 from readmaster_ai.domain.value_objects.common_enums import UserRole
@@ -14,6 +13,7 @@ from readmaster_ai.infrastructure.database.models import UserModel, ParentsStude
 
 from sqlalchemy import update as sqlalchemy_update, func, and_ # Import func and_
 from readmaster_ai.shared.exceptions import ApplicationException, NotFoundException # For not found on update
+from readmaster_ai.application.dto.user_dtos import UserCreateDTO
 
 # Helper function for converting SQLAlchemy UserModel to DomainUser
 def _user_model_to_domain(model: UserModel) -> Optional[DomainUser]:
@@ -77,6 +77,27 @@ class UserRepositoryImpl(UserRepository):
         if created_domain_user is None: # Should not happen if model is valid
             raise ValueError("Failed to convert created UserModel back to DomainUser after creation.")
         return created_domain_user
+
+    async def create_user_with_role(self, user_dto: UserCreateDTO) -> DomainUser:
+        """Creates a new user with a specific role from a DTO."""
+        # Validate email uniqueness
+        existing_user = await self.get_by_email(user_dto.email)
+        if existing_user:
+            raise ApplicationException("Email already registered.", status_code=409)
+
+        # Create new user domain entity
+        new_user = DomainUser(
+            user_id=uuid4(),
+            email=user_dto.email,
+            password_hash=user_dto.password,  # Password should already be hashed at this point
+            first_name=user_dto.first_name,
+            last_name=user_dto.last_name,
+            role=user_dto.role,
+            preferred_language=user_dto.preferred_language
+        )
+
+        # Use existing create method to persist
+        return await self.create(new_user)
 
     async def update(self, user: DomainUser) -> DomainUser:
         """Updates an existing user's details."""
@@ -179,8 +200,8 @@ class UserRepositoryImpl(UserRepository):
             .where(ParentsStudentsAssociation.c.student_id == student_id)
         )
         result = await self.session.execute(stmt)
-        count = result.scalar_one_or_none() # scalar_one_or_none in case the query itself could return no row (it won't with count)
-        return (count or 0) > 0
+        count = result.scalar_one() # scalar_one_or_none in case the query itself could return no row (it won't with count)
+        return count > 0
 
     async def get_student_ids_for_parent(self, parent_id: UUID) -> List[UUID]:
         """Retrieves a list of student UUIDs linked to a specific parent ID."""

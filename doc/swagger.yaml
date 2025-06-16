@@ -1599,6 +1599,35 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/student/progress-summary:
+    get:
+      tags:
+        - Student - Progress
+      summary: Get Student Progress Summary
+      description: Retrieves a comprehensive progress summary for the authenticated student, including assessment history and performance metrics.
+      operationId: get_student_progress_summary_api_v1_student_progress_summary_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StudentProgressSummaryDTO'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+        '404':
+          description: Student not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+        - OAuth2PasswordBearer: []
+
   /api/v1/parent/children/{child_student_id}/assessments/{assessment_id}/results:
     get:
       tags:

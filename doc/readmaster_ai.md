@@ -300,7 +300,7 @@ This diagram shows the workflows available to each user role.
 *
 *     C \--\> C1\[View Assignments\]
 *     C \--\> C2\[Take Reading Assessment\]
-*     C \--\> C3\[View Progress\]
+*     C \--\> C3\[View Progress Report Summary\]
 *
 *     C2 \--\> C21\[Select Reading\]
 *     C21 \--\> C22\[Record Audio\]
@@ -343,7 +343,7 @@ Intention and Explanation
 
 The diagram clarifies the functionality scope for each role.
 
-* Student: Flow is centered on taking assessments and viewing personal progress.
+* Student: Flow is centered on taking assessments and viewing personal progress, now explicitly including the ability to view their own progress report summary.
 * Parent: A supervisory role with read-only access to their children's progress, now also includes the ability to assign readings individually and manage these assignments (CRUD operations).
 * Teacher: Manages classes, assigns readings, and has full CRUD (Create, Read, Update, Delete) capabilities over students within their classes.
 * Admin: Manages platform-wide data (users, content) and system settings.
@@ -564,6 +564,7 @@ The backend isolates business rules from frameworks and external dependencies fo
 * │                        \# Contains FastAPI endpoints, Pydantic schemas for request/response validation, and authentication/authorization logic.
 * └── shared/              \# Shared utilities (exceptions, constants) \- Provides common functionalities and definitions used across multiple layers.
 *                          \# Includes custom exception classes, constants, and helper functions.
+*
 
 ### **4.2. Design Patterns Implementation**
 
@@ -598,6 +599,7 @@ The Student role is focused on the core learning experience. All actions are sco
 * Profile Management: Read and update their own user profile (/api/v1/users/me).
 * Reading Materials: List and browse all available reading materials (/api/v1/readings). View details of a specific reading, including quiz questions (without correct answers).
 * Assessments: Create new assessments for themself (/api/v1/assessments). Perform all steps of an assessment: request upload URLs, confirm uploads, and submit quiz answers. Read detailed results and analysis for their own completed assessments (/api/v1/assessments/{assessment\_id}/results).
+* Progress Tracking: View their own progress report summary (GET /api/v1/student/progress-summary). This dashboard provides key metrics such as average words per minute, accuracy, comprehension scores, and a history of recent assessments.
 * Notifications: Receive and manage their own notifications (e.g., new assignment, results ready).
 
 Parent
@@ -689,6 +691,14 @@ New API Endpoints for Parent Assignments (CRUD):
   * Summary: Parent Delete Child's Assignment
   * Description: Allows an authenticated parent to delete a specific assignment for their child.
   * Responses: 204 No Content
+
+New API Endpoint for Student Progress Summary:
+
+* GET /api/v1/student/progress-summary
+  * Summary: Get Student Progress Summary
+  * Description: Retrieves a detailed progress summary for the authenticated student. This includes key performance metrics, recent assessment attempts, and overall progress trends.
+  * Responses: 200 OK (StudentProgressSummaryDTO)
+  * Security: OAuth2PasswordBearer (student role required)
 
 Example Schema: User Creation (Existing)
 
@@ -896,4 +906,5 @@ The platform will utilize a cloud-native, containerized deployment strategy for 
 * Background Jobs: Time-consuming AI analysis is offloaded to background workers using Celery.
 * Caching Strategy: Redis caches user sessions, permissions, and frequently accessed static data like reading materials to reduce database load.
 * Database Optimization: All foreign keys and frequently filtered columns are indexed. SQLAlchemy's connection pool is used to manage database connections efficiently.
+*
 *
