@@ -61,139 +61,125 @@ The following UML diagrams visualize the system's structure, behavior, and data 
 
 This diagram illustrates the database schema, showing the different tables (entities), their attributes (columns), and the relationships between them.
 
-* erDiagram
-*     Users {
-*         UUID user\_id PK
-*         VARCHAR email UK
-*         VARCHAR password\_hash
-*         VARCHAR first\_name
-*         VARCHAR last\_name
-*         ENUM role
-*         UUID class\_id FK "Nullable, for students"
-*         TIMESTAMPTZ created\_at
-*         TIMESTAMPTZ updated\_at
-*         VARCHAR preferred\_language
-*     }
-*
-*     Classes {
-*         UUID class\_id PK
-*         VARCHAR class\_name
-*         VARCHAR grade\_level
-*         UUID created\_by\_teacher\_id FK
-*         TIMESTAMPTZ created\_at
-*         TIMESTAMPTZ updated\_at
-*     }
-*
-*     Readings {
-*         UUID reading\_id PK
-*         VARCHAR title
-*         TEXT content\_text
-*         VARCHAR content\_image\_url
-*         VARCHAR age\_category
-*         ENUM difficulty\_level
-*         VARCHAR language
-*         VARCHAR genre
-*         UUID added\_by\_admin\_id FK
-*         TIMESTAMPTZ created\_at
-*         TIMESTAMPTZ updated\_at
-*     }
-*
-*     Assessments {
-*         UUID assessment\_id PK
-*         UUID student\_id FK
-*         UUID reading\_id FK
-*         UUID assigned\_by\_teacher\_id FK "Nullable, if assigned by parent or self-started"
-*         UUID assigned\_by\_parent\_id FK "Nullable, if assigned by teacher or self-started"
-*         VARCHAR audio\_file\_url
-*         INTEGER audio\_duration\_seconds
-*         ENUM status
-*         TIMESTAMPTZ assessment\_date
-*         TEXT ai\_raw\_speech\_to\_text
-*         TIMESTAMPTZ updated\_at
-*     }
-*
-*     AssessmentResults {
-*         UUID result\_id PK
-*         UUID assessment\_id FK
-*         JSONB analysis\_data
-*         FLOAT comprehension\_score
-*         TIMESTAMPTZ created\_at
-*     }
-*
-*     QuizQuestions {
-*         UUID question\_id PK
-*         UUID reading\_id FK
-*         TEXT question\_text
-*         JSONB options
-*         VARCHAR correct\_option\_id
-*         VARCHAR language
-*         UUID added\_by\_admin\_id FK
-*         TIMESTAMPTZ created\_at
-*     }
-*
-*     StudentQuizAnswers {
-*         UUID answer\_id PK
-*         UUID assessment\_id FK
-*         UUID question\_id FK
-*         UUID student\_id FK
-*         VARCHAR selected\_option\_id
-*         BOOLEAN is\_correct
-*         TIMESTAMPTZ answered\_at
-*     }
-*
-*     Parents\_Students {
-*         UUID parent\_id FK
-*         UUID student\_id FK
-*         VARCHAR relationship\_type
-*         TIMESTAMPTZ linked\_at
-*     }
-*
-*     Teachers\_Classes {
-*         UUID teacher\_id FK
-*         UUID class\_id FK
-*         TIMESTAMPTZ assigned\_at
-*     }
-*
-*     ProgressTracking {
-*         UUID progress\_id PK
-*         UUID student\_id FK
-*         VARCHAR metric\_type
-*         FLOAT value
-*         DATE period\_start\_date
-*         DATE period\_end\_date
-*         TIMESTAMPTZ last\_calculated\_at
-*     }
-*
-*     Notifications {
-*         UUID notification\_id PK
-*         UUID user\_id FK
-*         ENUM type
-*         TEXT message
-*         UUID related\_entity\_id
-*         BOOLEAN is\_read
-*         TIMESTAMPTZ created\_at
-*     }
-*
-*     Users ||--o{ Assessments : "takes/assigns"
-*     Users ||--o{ Readings : "adds"
-*     Users ||--o{ QuizQuestions : "creates"
-*     Users ||--o{ StudentQuizAnswers : "answers"
-*     Users ||--o{ ProgressTracking : "tracks"
-*     Users ||--o{ Notifications : "receives"
-*     Users ||--o{ Parents\_Students : "links"
-*
-*     Classes }o--|| Users : "contains"
-*     Classes ||--o{ Teachers\_Classes : "assigned\_to"
-*
-*     Readings ||--o{ Assessments : "assessed\_in"
-*     Readings ||--o{ QuizQuestions : "has"
-*
-*     Assessments ||--|| AssessmentResults : "produces"
-*     Assessments ||--o{ StudentQuizAnswers : "includes"
-*
-*     QuizQuestions ||--o{ StudentQuizAnswers : "answered\_in"
-*
-*     Teachers\_Classes |o--|| Users : "teaches"
+```mermaid
+erDiagram
+    Users {
+        UUID user\_id PK
+        VARCHAR email UK
+        VARCHAR password\_hash
+        VARCHAR first\_name
+        VARCHAR last\_name
+        ENUM role
+        UUID class\_id FK "Nullable, for students"
+        TIMESTAMPTZ created\_at
+        TIMESTAMPTZ updated\_at
+        VARCHAR preferred\_language
+    }
+    Classes {
+        UUID class\_id PK
+        VARCHAR class\_name
+        VARCHAR grade\_level
+        UUID created\_by\_teacher\_id FK
+        TIMESTAMPTZ created\_at
+        TIMESTAMPTZ updated\_at
+    }
+    Readings {
+        UUID reading\_id PK
+        VARCHAR title
+        TEXT content\_text
+        VARCHAR content\_image\_url
+        VARCHAR age\_category
+        ENUM difficulty\_level
+        VARCHAR language
+        VARCHAR genre
+        UUID added\_by\_admin\_id FK
+        TIMESTAMPTZ created\_at
+        TIMESTAMPTZ updated\_at
+    }
+    Assessments {
+        UUID assessment\_id PK
+        UUID student\_id FK
+        UUID reading\_id FK
+        UUID assigned\_by\_teacher\_id FK "Nullable, if assigned by parent or self-started"
+        UUID assigned\_by\_parent\_id FK "Nullable, if assigned by teacher or self-started"
+        VARCHAR audio\_file\_url
+        INTEGER audio\_duration\_seconds
+        ENUM status
+        TIMESTAMPTZ assessment\_date
+        TEXT ai\_raw\_speech\_to\_text
+        TIMESTAMPTZ updated\_at
+    }
+    AssessmentResults {
+        UUID result\_id PK
+        UUID assessment\_id FK
+        JSONB analysis\_data
+        FLOAT comprehension\_score
+        TIMESTAMPTZ created\_at
+    }
+    QuizQuestions {
+        UUID question\_id PK
+        UUID reading\_id FK
+        TEXT question\_text
+        JSONB options
+        VARCHAR correct\_option\_id
+        VARCHAR language
+        UUID added\_by\_admin\_id FK
+        TIMESTAMPTZ created\_at
+    }
+    StudentQuizAnswers {
+        UUID answer\_id PK
+        UUID assessment\_id FK
+        UUID question\_id FK
+        UUID student\_id FK
+        VARCHAR selected\_option\_id
+        BOOLEAN is\_correct
+        TIMESTAMPTZ answered\_at
+    }
+    Parents\_Students {
+        UUID parent\_id FK
+        UUID student\_id FK
+        VARCHAR relationship\_type
+        TIMESTAMPTZ linked\_at
+    }
+    Teachers\_Classes {
+        UUID teacher\_id FK
+        UUID class\_id FK
+        TIMESTAMPTZ assigned\_at
+    }
+    ProgressTracking {
+        UUID progress\_id PK
+        UUID student\_id FK
+        VARCHAR metric\_type
+        FLOAT value
+        DATE period\_start\_date
+        DATE period\_end\_date
+        TIMESTAMPTZ last\_calculated\_at
+    }
+    Notifications {
+        UUID notification\_id PK
+        UUID user\_id FK
+        ENUM type
+        TEXT message
+        UUID related\_entity\_id
+        BOOLEAN is\_read
+        TIMESTAMPTZ created\_at
+    }
+    Users ||--o{ Assessments : "takes/assigns"
+    Users ||--o{ Readings : "adds"
+    Users ||--o{ QuizQuestions : "creates"
+    Users ||--o{ StudentQuizAnswers : "answers"
+    Users ||--o{ ProgressTracking : "tracks"
+    Users ||--o{ Notifications : "receives"
+    Users ||--o{ Parents\_Students : "links"
+    Classes }o--|| Users : "contains"
+    Classes ||--o{ Teachers\_Classes : "assigned\_to"
+    Readings ||--o{ Assessments : "assessed\_in"
+    Readings ||--o{ QuizQuestions : "has"
+    Assessments ||--|| AssessmentResults : "produces"
+    Assessments ||--o{ StudentQuizAnswers : "includes"
+    QuizQuestions ||--o{ StudentQuizAnswers : "answered\_in"
+    Teachers\_Classes |o--|| Users : "teaches"
+```
 
 Intention and Explanation
 
@@ -207,74 +193,63 @@ The ERD is a normalized relational model serving as the application's single sou
 
 This diagram provides a high-level overview of the system's architecture.
 
-* graph TB
-*     subgraph "Client Layer"
-*         A\[React Frontend\<br/\>TypeScript \+ i18n\]
-*         B\[Mobile Browser\]
-*         C\[Desktop Browser\]
-*     end
-*
-*     subgraph "CDN & Static Assets"
-*         D\[CDN\<br/\>Static Files\]
-*     end
-*
-*     subgraph "API Gateway"
-*         E\[Load Balancer\<br/\>HTTPS/TLS\]
-*     end
-*
-*     subgraph "Application Layer"
-*         F\[Backend API\<br/\>RESTful Service\]
-*         G\[Authentication\<br/\>JWT Service\]
-*         H\[WebSocket Server\<br/\>Real-time Notifications\]
-*     end
-*
-*     subgraph "Processing Layer"
-*         I\[AI Processing Service\<br/\>Async Workers\]
-*         J\[Queue System\<br/\>FastAPI BackgroundTasks / Celery\]
-*     end
-*
-*     subgraph "External Services"
-*         K\[Google AI APIs\<br/\>Speech-to-Text\<br/\>Gemini Models\]
-*     end
-*
-*     subgraph "Data Layer"
-*         L\[PostgreSQL\<br/\>Primary Database\]
-*         M\[Redis Cache\<br/\>Session & Data Cache\]
-*         N\[Cloud Storage\<br/\>Audio Files\]
-*     end
-*
-*     subgraph "Monitoring & Logging"
-*         O\[Logging Service\<br/\>ELK Stack\]
-*         P\[Monitoring\<br/\>Metrics & Alerts\]
-*     end
-*
-*     A \--\> D
-*     B \--\> E
-*     C \--\> E
-*     D \--\> E
-*     E \--\> F
-*     E \--\> G
-*     E \--\> H
-*
-*     F \--\> M
-*     F \--\> L
-*     F \--\> J
-*     F \--\> N
-*
-*     G \--\> M
-*     G \--\> L
-*
-*     H \--\> M
-*
-*     J \--\> I
-*     I \--\> K
-*     I \--\> L
-*     I \--\> N
-*
-*     F \--\> O
-*     I \--\> O
-*     F \--\> P
-*     I \--\> P
+```mermaid
+graph TB
+    subgraph "Client Layer"
+        A\[React Frontend\<br/\>TypeScript \+ i18n\]
+        B\[Mobile Browser\]
+        C\[Desktop Browser\]
+    end
+    subgraph "CDN & Static Assets"
+        D\[CDN\<br/\>Static Files\]
+    end
+    subgraph "API Gateway"
+        E\[Load Balancer\<br/\>HTTPS/TLS\]
+    end
+    subgraph "Application Layer"
+        F\[Backend API\<br/\>RESTful Service\]
+        G\[Authentication\<br/\>JWT Service\]
+        H\[WebSocket Server\<br/\>Real-time Notifications\]
+    end
+    subgraph "Processing Layer"
+        I\[AI Processing Service\<br/\>Async Workers\]
+        J\[Queue System\<br/\>FastAPI BackgroundTasks / Celery\]
+    end
+    subgraph "External Services"
+        K\[Google AI APIs\<br/\>Speech-to-Text\<br/\>Gemini Models\]
+    end
+    subgraph "Data Layer"
+        L\[PostgreSQL\<br/\>Primary Database\]
+        M\[Redis Cache\<br/\>Session & Data Cache\]
+        N\[Cloud Storage\<br/\>Audio Files\]
+    end
+    subgraph "Monitoring & Logging"
+        O\[Logging Service\<br/\>ELK Stack\]
+        P\[Monitoring\<br/\>Metrics & Alerts\]
+    end
+    A \--\> D
+    B \--\> E
+    C \--\> E
+    D \--\> E
+    E \--\> F
+    E \--\> G
+    E \--\> H
+    F \--\> M
+    F \--\> L
+    F \--\> J
+    F \--\> N
+    G \--\> M
+    G \--\> L
+    H \--\> M
+    J \--\> I
+    I \--\> K
+    I \--\> L
+    I \--\> N
+    F \--\> O
+    I \--\> O
+    F \--\> P
+    I \--\> P
+```
 
 Intention and Explanation
 
@@ -290,54 +265,56 @@ The architecture uses a decoupled, microservices-oriented approach for scalabili
 
 This diagram shows the workflows available to each user role.
 
-* graph TD
-*     A\[User Login\] \--\> B{Role Check}
-*
-*     B \--\>|Student| C\[Student Dashboard\]
-*     B \--\>|Parent| D\[Parent Dashboard\]
-*     B \--\>|Teacher| E\[Teacher Dashboard\]
-*     B \--\>|Admin| F\[Admin Dashboard\]
-*
-*     C \--\> C1\[View Assignments\]
-*     C \--\> C2\[Take Reading Assessment\]
-*     C \--\> C3\[View Progress Report Summary\]
-*
-*     C2 \--\> C21\[Select Reading\]
-*     C21 \--\> C22\[Record Audio\]
-*     C22 \--\> C23\[Answer Quiz\]
-*     C23 \--\> C24\[Submit Assessment\]
-*     C24 \--\> C25\[View Results\]
-*
-*     D \--\> D1\[View Children's Progress\]
-*     D \--\> D2\[View Assessment Results\]
-*     D \--\> D3\[Receive Notifications\]
-*     D \--\> D4\[Assign Readings to Child\]
-*     D4 \--\> D41\[Select Reading Material\]
-*     D4 \--\> D42\[Assign to Child Individually\]
-*     D4 \--\> D43\[Manage Child's Assignments (CRUD)\]
-*
-*     E \--\> E1\[Manage Classes\]
-*     E \--\> E2\[Assign Readings\]
-*     E \--\> E3\[Monitor Student Progress\]
-*     E \--\> E4\[View Reports\]
-*
-*     E1 \--\> E11\[Create Class\]
-*     E1 \--\> E12(Manage Students in Class)
-*     E12 \--\> E12a\[Add Student\]
-*     E12 \--\> E12b\[View/Update Student\]
-*     E12 \--\> E12c\[Remove Student\]
-*
-*     E2 \--\> E21\[Select Reading Material\]
-*     E2 \--\> E22\[Assign to Student/Class\]
-*
-*     F \--\> F1\[Manage Users\]
-*     F \--\> F2\[Manage Reading Materials\]
-*     F \--\> F3\[System Configuration\]
-*     F \--\> F4\[View System Analytics\]
-*
-*     F2 \--\> F21\[Add New Reading\]
-*     F2 \--\> F22\[Create Quiz Questions\]
-*     F2 \--\> F23\[Manage Content Library\]
+```mermaid
+graph TD
+     A\[User Login\] \--\> B{Role Check}
+
+     B \--\>|Student| C\[Student Dashboard\]
+     B \--\>|Parent| D\[Parent Dashboard\]
+     B \--\>|Teacher| E\[Teacher Dashboard\]
+     B \--\>|Admin| F\[Admin Dashboard\]
+
+     C \--\> C1\[View Assignments\]
+     C \--\> C2\[Take Reading Assessment\]
+     C \--\> C3\[View Progress Report Summary\]
+
+     C2 \--\> C21\[Select Reading\]
+     C21 \--\> C22\[Record Audio\]
+     C22 \--\> C23\[Answer Quiz\]
+     C23 \--\> C24\[Submit Assessment\]
+     C24 \--\> C25\[View Results\]
+
+     D \--\> D1\[View Children's Progress\]
+     D \--\> D2\[View Assessment Results\]
+     D \--\> D3\[Receive Notifications\]
+     D \--\> D4\[Assign Readings to Child\]
+     D4 \--\> D41\[Select Reading Material\]
+     D4 \--\> D42\[Assign to Child Individually\]
+     D4 \--\> D43\[Manage Child's Assignments (CRUD)\]
+
+     E \--\> E1\[Manage Classes\]
+     E \--\> E2\[Assign Readings\]
+     E \--\> E3\[Monitor Student Progress\]
+     E \--\> E4\[View Reports\]
+
+     E1 \--\> E11\[Create Class\]
+     E1 \--\> E12(Manage Students in Class)
+     E12 \--\> E12a\[Add Student\]
+     E12 \--\> E12b\[View/Update Student\]
+     E12 \--\> E12c\[Remove Student\]
+
+     E2 \--\> E21\[Select Reading Material\]
+     E2 \--\> E22\[Assign to Student/Class\]
+
+     F \--\> F1\[Manage Users\]
+     F \--\> F2\[Manage Reading Materials\]
+     F \--\> F3\[System Configuration\]
+     F \--\> F4\[View System Analytics\]
+
+     F2 \--\> F21\[Add New Reading\]
+     F2 \--\> F22\[Create Quiz Questions\]
+     F2 \--\> F23\[Manage Content Library\]
+```
 
 Intention and Explanation
 
@@ -694,6 +671,7 @@ New API Endpoints for Parent Assignments (CRUD):
 
 New API Endpoint for Student Progress Summary:
 
+```
 * GET /api/v1/student/progress-summary
   * Summary: Get Student Progress Summary
   * Description: Retrieves a detailed progress summary for the authenticated student. This includes key performance metrics, recent assessment attempts, and overall progress trends.
@@ -702,26 +680,27 @@ New API Endpoint for Student Progress Summary:
 
 Example Schema: User Creation (Existing)
 
-* \# presentation/schemas/user\_schemas.py
-* from pydantic import BaseModel, EmailStr
-* from uuid import UUID
-*
-* class UserCreateRequest(BaseModel):
-*     email: EmailStr
-*     password: str
-*     first\_name: str | None \= None
-*     last\_name: str | None \= None
-*     role: str | None \= None
-*
-* class UserResponse(BaseModel):
-*     user\_id: UUID
-*     email: EmailStr
-*     role: str
-*     first\_name: str | None
-*     last\_name: str | None
-*
-*     class Config:
-*         from\_attributes \= True \# Formerly orm\_mode
+ \# presentation/schemas/user\_schemas.py
+ from pydantic import BaseModel, EmailStr
+ from uuid import UUID
+
+ class UserCreateRequest(BaseModel):
+     email: EmailStr
+     password: str
+     first\_name: str | None \= None
+     last\_name: str | None \= None
+     role: str | None \= None
+
+ class UserResponse(BaseModel):
+     user\_id: UUID
+     email: EmailStr
+     role: str
+     first\_name: str | None
+     last\_name: str | None
+
+     class Config:
+         from\_attributes \= True \# Formerly orm\_mode
+```
 
 ### **4.6. File Handling Strategy**
 
