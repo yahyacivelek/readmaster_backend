@@ -329,54 +329,47 @@ The diagram clarifies the functionality scope for each role.
 
 This diagram details the interactions for a reading assessment.
 
-* sequenceDiagram
-*     participant S as Student
-*     participant FE as Frontend
-*     participant API as Backend API
-*     participant DB as Database
-*     participant Q as Queue System
-*     participant AI as AI Service
-*     participant CS as Cloud Storage
-*     participant WS as WebSocket
-*
-*     S-\>\>FE: Select Reading
-*     FE-\>\>API: GET /readings/{id}
-*     API-\>\>DB: Fetch reading content
-*     DB--\>\>API: Reading data
-*     API--\>\>FE: Display reading
-*
-*     S-\>\>FE: Start Assessment
-*     FE-\>\>API: POST /assessments (body: reading\_id)
-*     API-\>\>DB: Create assessment record (status: 'pending\_audio')
-*     DB--\>\>API: Assessment ID
-*     API--\>\>FE: Assessment created
-*
-*     S-\>\>FE: Record Audio
-*     FE-\>\>API: POST /assessments/{id}/request-upload-url
-*     API--\>\>FE: {upload\_url, blob\_name}
-*     FE-\>\>CS: PUT audio file to upload\_url
-*
-*     FE-\>\>API: POST /assessments/{id}/confirm-upload (body: blob\_name)
-*     API-\>\>DB: Update assessment status to 'processing'
-*     API-\>\>Q: Queue AI processing job
-*     API--\>\>FE: Upload confirmed
-*
-*     S-\>\>FE: Answer Quiz Questions
-*     FE-\>\>API: POST /assessments/{id}/quiz-answers
-*     API-\>\>DB: Store quiz answers
-*     API--\>\>FE: Quiz submitted
-*
-*     Q-\>\>AI: Process audio analysis
-*     AI-\>\>CS: Download audio file
-*     AI-\>\>AI: Speech-to-text, fluency, etc.
-*     AI-\>\>DB: Store analysis results & update status to 'completed'
-*     AI-\>\>WS: Notify processing complete (to user\_id)
-*
-*     WS-\>\>FE: Real-time notification
-*     FE-\>\>API: GET /assessments/{id}/results
-*     API-\>\>DB: Fetch complete results
-*     API--\>\>FE: Complete analysis
-*     FE--\>\>S: Display results
+sequenceDiagram
+    participant S as Student
+    participant FE as Frontend
+    participant API as Backend API
+    participant DB as Database
+    participant Q as Queue System
+    participant AI as AI Service
+    participant CS as Cloud Storage
+    participant WS as WebSocket
+    S-\>\>FE: Select Reading
+    FE-\>\>API: GET /readings/{id}
+    API-\>\>DB: Fetch reading content
+    DB--\>\>API: Reading data
+    API--\>\>FE: Display reading
+    S-\>\>FE: Start Assessment
+    FE-\>\>API: POST /assessments (body: reading\_id)
+    API-\>\>DB: Create assessment record (status: 'pending\_audio')
+    DB--\>\>API: Assessment ID
+    API--\>\>FE: Assessment created
+    S-\>\>FE: Record Audio
+    FE-\>\>API: POST /assessments/{id}/request-upload-url
+    API--\>\>FE: {upload\_url, blob\_name}
+    FE-\>\>CS: PUT audio file to upload\_url
+    FE-\>\>API: POST /assessments/{id}/confirm-upload (body: blob\_name)
+    API-\>\>DB: Update assessment status to 'processing'
+    API-\>\>Q: Queue AI processing job
+    API--\>\>FE: Upload confirmed
+    S-\>\>FE: Answer Quiz Questions
+    FE-\>\>API: POST /assessments/{id}/quiz-answers
+    API-\>\>DB: Store quiz answers
+    API--\>\>FE: Quiz submitted
+    Q-\>\>AI: Process audio analysis
+    AI-\>\>CS: Download audio file
+    AI-\>\>AI: Speech-to-text, fluency, etc.
+    AI-\>\>DB: Store analysis results & update status to 'completed'
+    AI-\>\>WS: Notify processing complete (to user\_id)
+    WS-\>\>FE: Real-time notification
+    FE-\>\>API: GET /assessments/{id}/results
+    API-\>\>DB: Fetch complete results
+    API--\>\>FE: Complete analysis
+    FE--\>\>S: Display results
 
 Intention and Explanation
 
