@@ -316,19 +316,26 @@ graph TD
      F2 \--\> F23\[Manage Content Library\]
 ```
 
-Intention and Explanation
+The diagram illustrates a multi-role educational platform's user experience, starting from login and branching into different functionalities based on the user's role:
 
-The diagram clarifies the functionality scope for each role.
-
-* Student: Flow is centered on taking assessments and viewing personal progress, now explicitly including the ability to view their own progress report summary.
-* Parent: A supervisory role with read-only access to their children's progress, now also includes the ability to assign readings individually and manage these assignments (CRUD operations).
-* Teacher: Manages classes, assigns readings, and has full CRUD (Create, Read, Update, Delete) capabilities over students within their classes.
-* Admin: Manages platform-wide data (users, content) and system settings.
+1.  **User Login (A)**: The entry point to the system.
+2.  **Role Check (B)**: A decision point that determines the user's access level.
+3.  **Dashboard Redirection (C, D, E, F)**: Based on the role check, the user is directed to their specific dashboard:
+    *   **Student (C)**: Can view assignments, take assessments, and view progress.
+        *   *Taking Assessment Sub-flow (C2 -> C25)*: A detailed sequence from selecting a reading to viewing results.
+    *   **Parent (D)**: Can view children's progress and assessment results, receive notifications, and assign readings to their children.
+        *   *Assign Readings Sub-flow (D4 -> D43)*: Details the process of selecting material and managing assignments.
+    *   **Teacher (E)**: Can manage classes, assign readings, monitor student progress, and view reports.
+        *   *Manage Classes Sub-flow (E1 -> E12c)*: Includes creating classes and managing students within them (CRUD operations: Create, Read/Update, Delete).
+        *   *Assign Readings Sub-flow (E2 -> E22)*: Selecting material and assigning it.
+    *   **Admin (F)**: Has overarching control, managing users, reading materials, system configuration, and viewing analytics.
+        *   *Manage Reading Materials Sub-flow (F2 -> F23)*: Adding new readings, creating quizzes, and managing the content library.
 
 ### **2.4. Assessment Process Sequence Diagram**
 
 This diagram details the interactions for a reading assessment.
 
+```mermaid
 sequenceDiagram
     participant S as Student
     participant FE as Frontend
@@ -370,6 +377,7 @@ sequenceDiagram
     API-\>\>DB: Fetch complete results
     API--\>\>FE: Complete analysis
     FE--\>\>S: Display results
+```
 
 Intention and Explanation
 
@@ -384,6 +392,7 @@ This sequence illustrates the asynchronous assessment flow designed for a respon
 
 This diagram shows the object-oriented representation of core business entities.
 
+```mermaid
 classDiagram
     class User {
         \+UUID userId
@@ -475,6 +484,7 @@ classDiagram
     Assessment "1" \-- "1" AssessmentResult : produces
     Assessment "1" \-- "\*" QuizAnswer : includes
     QuizQuestion "1" \-- "\*" QuizAnswer : is answered by
+```
 
 Intention and Explanation
 
@@ -689,6 +699,7 @@ Example Schema: User Creation (Existing)
 
 The schema uses specific enum types for controlled vocabularies and is indexed for performance.
 
+```sql
 * \-- Enum types for controlled vocabularies
 * CREATE TYPE user\_role\_enum AS ENUM ('student', 'parent', 'teacher', 'admin');
 * CREATE TYPE assessment\_status\_enum AS ENUM ('pending\_audio', 'processing', 'completed', 'error');
@@ -821,6 +832,7 @@ The schema uses specific enum types for controlled vocabularies and is indexed f
 * CREATE INDEX idx\_teachers\_classes\_teacher\_id ON Teachers\_Classes (teacher\_id);
 * CREATE INDEX idx\_progresstracking\_student\_metric ON ProgressTracking (student\_id, metric\_type, period\_end\_date);
 * CREATE INDEX idx\_notifications\_user\_id ON Notifications (user\_id, created\_at DESC);
+```
 
 ## **6\. Performance Considerations**
 
