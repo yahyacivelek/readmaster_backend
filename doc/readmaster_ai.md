@@ -391,114 +391,97 @@ This sequence illustrates the asynchronous assessment flow designed for a respon
 
 This diagram shows the object-oriented representation of core business entities.
 
-* classDiagram
-*     class User {
-*         \+UUID userId
-*         \+String email
-*         \+String passwordHash
-*         \+UserRole role
-*         \+login()
-*         \+updateProfile()
-*     }
-*
-*     class Student {
-*         \+Class class
-*         \+List\~Assessment\~ assessments
-*         \+takeAssessment(Reading)
-*         \+viewProgress()
-*     }
-*
-*     class Teacher {
-*         \+List\~Class\~ classes
-*         \+createClass()
-*         \+assignReading(Student, Reading)
-*         \+addStudentToClass(Student, Class)
-*         \+removeStudentFromClass(Student, Class)
-*         \+updateStudentInClass(Student)
-*     }
-*
-*     class Parent {
-*         \+List\~Student\~ children
-*         \+assignReading(Student, Reading)
-*         \+viewChildProgress(Student)
-*         \+manageAssignment(Assignment)
-*     }
-*
-*     class Admin {
-*         \+manageUsers()
-*         \+manageReadings()
-*     }
-*
-*     class Reading {
-*         \+UUID readingId
-*         \+String title
-*         \+String contentText
-*         \+DifficultyLevel difficulty
-*         \+List\~QuizQuestion\~ questions
-*     }
-*
-*     class Assessment {
-*         \+UUID assessmentId
-*         \+UUID studentId
-*         \+UUID readingId
-*         \+String audioFileUrl
-*         \+AssessmentStatus status
-*         \+AssessmentResult result
-*         \+processAudio()
-*         \+calculateScores()
-*     }
-*
-*     class AssessmentResult {
-*         \+UUID resultId
-*         \+Object analysisData
-*         \+Float comprehensionScore
-*         \+generateReport()
-*     }
-*
-*     class QuizQuestion {
-*         \+UUID questionId
-*         \+String questionText
-*         \+Object options
-*         \+validateAnswer(String)
-*     }
-*
-*     class QuizAnswer {
-*         \+UUID answerId
-*         \+UUID questionId
-*         \+String selectedOptionId
-*         \+Boolean isCorrect
-*     }
-*
-*     class Class {
-*         \+UUID classId
-*         \+String className
-*         \+List\~Student\~ students
-*         \+List\~Teacher\~ teachers
-*         \+addStudent(Student)
-*         \+removeStudent(Student)
-*     }
-*
-*     User \<|-- Student
-*     User \<|-- Teacher
-*     User \<|-- Parent
-*     User \<|-- Admin
-*
-*     Student "1" \-- "\*" Assessment : takes
-*     Student "\*" \-- "1" Class : enrolls in
-*
-*     Teacher "1" \-- "\*" Class : manages
-*     Teacher "1" \-- "\*" Assessment : assigns
-*
-*     Parent "1" \-- "\*" Assessment : assigns
-*     Parent "1" \-- "\*" Assignment : manages
-*
-*     Reading "1" \-- "\*" Assessment : is subject of
-*     Reading "1" \-- "\*" QuizQuestion : has
-*
-*     Assessment "1" \-- "1" AssessmentResult : produces
-*     Assessment "1" \-- "\*" QuizAnswer : includes
-*
-*     QuizQuestion "1" \-- "\*" QuizAnswer : is answered by
+classDiagram
+    class User {
+        \+UUID userId
+        \+String email
+        \+String passwordHash
+        \+UserRole role
+        \+login()
+        \+updateProfile()
+    }
+    class Student {
+        \+Class class
+        \+List\~Assessment\~ assessments
+        \+takeAssessment(Reading)
+        \+viewProgress()
+    }
+    class Teacher {
+        \+List\~Class\~ classes
+        \+createClass()
+        \+assignReading(Student, Reading)
+        \+addStudentToClass(Student, Class)
+        \+removeStudentFromClass(Student, Class)
+        \+updateStudentInClass(Student)
+    }
+    class Parent {
+        \+List\~Student\~ children
+        \+assignReading(Student, Reading)
+        \+viewChildProgress(Student)
+        \+manageAssignment(Assignment)
+    }
+    class Admin {
+        \+manageUsers()
+        \+manageReadings()
+    }
+    class Reading {
+        \+UUID readingId
+        \+String title
+        \+String contentText
+        \+DifficultyLevel difficulty
+        \+List\~QuizQuestion\~ questions
+    }
+    class Assessment {
+        \+UUID assessmentId
+        \+UUID studentId
+        \+UUID readingId
+        \+String audioFileUrl
+        \+AssessmentStatus status
+        \+AssessmentResult result
+        \+processAudio()
+        \+calculateScores()
+    }
+    class AssessmentResult {
+        \+UUID resultId
+        \+Object analysisData
+        \+Float comprehensionScore
+        \+generateReport()
+    }
+    class QuizQuestion {
+        \+UUID questionId
+        \+String questionText
+        \+Object options
+        \+validateAnswer(String)
+    }
+    class QuizAnswer {
+        \+UUID answerId
+        \+UUID questionId
+        \+String selectedOptionId
+        \+Boolean isCorrect
+    }
+    class Class {
+        \+UUID classId
+        \+String className
+        \+List\~Student\~ students
+        \+List\~Teacher\~ teachers
+        \+addStudent(Student)
+        \+removeStudent(Student)
+    }
+    User \<|-- Student
+    User \<|-- Teacher
+    User \<|-- Parent
+    User \<|-- Admin
+    Student "1" \-- "\*" Assessment : takes
+    Student "\*" \-- "1" Class : enrolls in
+    Teacher "1" \-- "\*" Class : manages
+    Teacher "1" \-- "\*" Assessment : assigns
+    Parent "1" \-- "\*" Assessment : assigns
+    Parent "1" \-- "\*" Assignment : manages
+    Reading "1" \-- "\*" Assessment : is subject of
+    Reading "1" \-- "\*" QuizQuestion : has
+    Assessment "1" \-- "1" AssessmentResult : produces
+    Assessment "1" \-- "\*" QuizAnswer : includes
+    QuizQuestion "1" \-- "\*" QuizAnswer : is answered by
 
 Intention and Explanation
 
