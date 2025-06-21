@@ -1288,8 +1288,12 @@ paths:
     post:
       tags:
         - Teacher - Account Management
-      summary: Teacher Create Student Account
-      description: Allows an authenticated teacher to create a new student account.
+      summary: Teacher Create Student Account (requires class association)
+      description: |-
+        Allows an authenticated teacher to create a new student account.
+        **Important:** The new student account **must be associated with one of the teacher's existing classes**.
+        A teacher must have created at least one class before using this endpoint.
+        The `class_id` of the class to associate the student with must be provided in the request body.
       operationId: teacher_create_student_account_api_v1_teacher_students_post
       security:
         - OAuth2PasswordBearer: []
@@ -1301,7 +1305,7 @@ paths:
               $ref: '#/components/schemas/TeacherStudentCreateRequest'
       responses:
         '201':
-          description: Student account created successfully.
+          description: Student account created successfully and associated with the specified class.
           content:
             application/json:
               schema:
@@ -3161,11 +3165,16 @@ components:
           type: string
           enum: [student] # Fixed to student
           default: student
+        class_id: # Added class_id
+          type: string
+          format: uuid
+          description: The ID of the teacher's existing class to associate this new student with.
       required:
         - email
         - password
+        - class_id # Added class_id to required fields
       title: TeacherStudentCreateRequest
-      description: Request body for a teacher to create a new student account.
+      description: Request body for a teacher to create a new student account. Requires `class_id` for association.
 
     TokenResponse:
       properties:

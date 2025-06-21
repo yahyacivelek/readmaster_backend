@@ -326,7 +326,7 @@ The diagram illustrates a multi-role educational platform's user experience, sta
     *   **Parent (D)**: Can view children's progress and assessment results, receive notifications, and assign readings to their children.
         *   *Assign Readings Sub-flow (D4 -> D43)*: Details the process of selecting material and managing assignments.
     *   **Teacher (E)**: Can manage classes, assign readings, monitor student progress, and view reports.
-        *   *Manage Classes Sub-flow (E1 -> E12c)*: Includes creating classes and managing students within them (CRUD operations: Create, Read/Update, Delete).
+        *   *Manage Classes Sub-flow (E1 -> E12c)*: Includes creating classes and managing students within them. **A teacher must create a class (E11) before adding students (E12a) to it.** Student management operations (CRUD: Create, Read/Update, Delete) occur within the context of a class.
         *   *Assign Readings Sub-flow (E2 -> E22)*: Selecting material and assigning it.
     *   **Admin (F)**: Has overarching control, managing users, reading materials, system configuration, and viewing analytics.
         *   *Manage Reading Materials Sub-flow (F2 -> F23)*: Adding new readings, creating quizzes, and managing the content library.
@@ -586,9 +586,11 @@ Teacher
 The Teacher role is focused on class and student management within their assigned scope.
 
 * Profile Management: Read and update their own user profile.
-* Class Management: Perform full CRUD operations (Create, Read, Update, Delete) on classes they own (/api/v1/teacher/classes).
-* Student Management (within their classes \- MVP): For the Minimum Viable Product (MVP), teachers will directly create and manage student accounts. This includes adding new students to a class they own, removing students from a class they own, and listing all students enrolled in their classes. They can create new student accounts via the new API endpoint:
-  * POST /api/v1/teacher/students: Create a new student account. This student can then be added to a class using POST /api/v1/teacher/classes/{class\_id}/students.
+* Class Management: Perform full CRUD operations (Create, Read, Update, Delete) on classes they own (/api/v1/teacher/classes). A teacher must create at least one class before they can create student accounts.
+* Student Management (within their classes \- MVP): For the Minimum Viable Product (MVP), teachers will directly create and manage student accounts. Student accounts created by a teacher must be associated with one of their existing classes. This includes adding new students to a class they own (which may involve creating the student account as part of this process), removing students from a class they own, and listing all students enrolled in their classes.
+    *   If a teacher wishes to create a student account, they must first have created at least one class.
+    *   The primary mechanism for adding students is typically by adding them to a specific class (e.g., using an endpoint like POST /api/v1/teacher/classes/{class_id}/students, which would handle the creation of the student record and associating it with the class).
+    *   The standalone endpoint POST /api/v1/teacher/students, if still used, would require a `class_id` to associate the new student with one of the teacher's classes.
     The ability for students to initiate linking via an invitation process is planned for future iterations.
 * Assignments & Monitoring: Assign readings to individual students or entire classes they own (/api/v1/teacher/assignments/readings). Read class-level progress reports for their classes (/api/v1/teacher/classes/{class\_id}/progress-report). Read progress summaries for any student within their classes (/api/v1/teacher/students/{student\_id}/progress-summary).
 
@@ -621,15 +623,16 @@ New API Endpoints for Account Creation:
     * 403 Forbidden: Authenticated user is not a parent.
     * 422 Validation Error: Invalid request body.
 * POST /api/v1/teacher/students
-  * Summary: Teacher Create Student Account
-  * Description: Allows an authenticated teacher to create a new student account. The created user's role will be 'student'. This student can then be added to a class using POST /api/v1/teacher/classes/{class\_id}/students.
+  * Summary: Teacher Create Student Account (association with a class required)
+  * Description: Allows an authenticated teacher to create a new student account, which **must be associated with one of their existing classes**. If a teacher does not have any classes, they must create one first. The request body for this endpoint (see `TeacherStudentCreateRequest`) would need to include a `class_id` to link the student to one of the teacher's classes. Alternatively, student creation may primarily occur via an "add student to class" operation (e.g., POST /api/v1/teacher/classes/{class_id}/students), which would handle creating the student and associating them simultaneously.
   * Request Body:
 * class TeacherStudentCreateRequest(UserCreateRequest):
 *     \# Inherits email, password, first\_name, last\_name, preferred\_language from UserCreateRequest
 *     role: Literal\["student"\] \= "student" \# Role is fixed to 'student'
+*     class_id: UUID # Required: ID of the teacher's class to associate the student with.
   *
   * Responses:
-    * 201 Created: UserResponseDTO (details of the newly created student account)
+    * 201 Created: UserResponseDTO (details of the newly created student account, now associated with a class)
     * 401 Unauthorized: Invalid or missing authentication token.
     * 403 Forbidden: Authenticated user is not a teacher.
     * 422 Validation Error: Invalid request body.
