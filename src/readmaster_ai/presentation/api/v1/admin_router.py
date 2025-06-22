@@ -262,3 +262,33 @@ async def admin_list_users(
         # Log the exception for debugging
         print(f"An unexpected error occurred while listing users: {e}") # Consider using proper logging
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An unexpected error occurred.")
+
+
+@router.delete("/users/{user_id}", status_code=status.HTTP_204_NO_CONTENT, tags=["Admin Management"])
+async def admin_delete_user(
+    user_id: UUID = Path(..., description="The ID of the user to delete."),
+    current_admin: DomainUser = Depends(get_current_user), # We need the current admin for the use case
+    user_repo: UserRepository = Depends(get_user_repo)
+):
+    """
+    Deletes a user by their ID. Only accessible by admin users.
+    An admin cannot delete their own account through this endpoint.
+    """
+    # Need to import AdminDeleteUserUseCase
+    from readmaster_ai.application.use_cases.user_use_cases import AdminDeleteUserUseCase
+
+    delete_use_case = AdminDeleteUserUseCase(user_repo)
+    try:
+        await delete_use_case.execute(user_id_to_delete=user_id, current_admin_user=current_admin)
+        # On success, FastAPI will return 204 No Content automatically
+    except ApplicationException as e:
+        # Map application exceptions to HTTP exceptions
+        # Common status codes from AdminDeleteUserUseCase:
+        # 403: current_admin_user is not an admin (should be caught by router dependency, but good to have defense in depth)
+        # 404: user_id_to_delete not found
+        # 400: admin trying to delete themselves
+        raise HTTPException(status_code=e.status_code, detail=e.message)
+    except Exception as e:
+        # Log unexpected errors
+        print(f"Unexpected error deleting user {user_id}: {e}") # Proper logging should be used
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An unexpected error occurred while deleting the user.")

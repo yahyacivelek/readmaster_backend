@@ -14,6 +14,7 @@ from readmaster_ai.infrastructure.database.models import UserModel, ParentsStude
 from sqlalchemy import update as sqlalchemy_update, func, and_ # Import func and_
 from readmaster_ai.shared.exceptions import ApplicationException, NotFoundException # For not found on update
 from readmaster_ai.application.dto.user_dtos import UserCreateDTO
+from sqlalchemy import delete
 
 # Helper function for converting SQLAlchemy UserModel to DomainUser
 def _user_model_to_domain(model: UserModel) -> Optional[DomainUser]:
@@ -234,3 +235,10 @@ class UserRepositoryImpl(UserRepository):
 
         domain_users = [_user_model_to_domain(user_model) for user_model in user_models if _user_model_to_domain(user_model) is not None]
         return domain_users, total_count
+
+    async def delete_by_id(self, user_id: UUID) -> bool:
+        """Deletes a user by their ID."""
+        stmt = delete(UserModel).where(UserModel.user_id == user_id)
+        result = await self.session.execute(stmt)
+        # await self.session.commit() # Commit is handled by the UnitOfWork or service layer
+        return result.rowcount > 0

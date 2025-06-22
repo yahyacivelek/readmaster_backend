@@ -224,3 +224,44 @@ class ListUsersUseCase:
 
         users, total_count = await self.user_repo.list_users_paginated(page=page, size=size)
         return users, total_count
+
+
+class AdminDeleteUserUseCase:
+    """
+    Use case for an admin to delete a user.
+    """
+    def __init__(self, user_repo: UserRepository):
+        self.user_repo = user_repo
+
+    async def execute(self, user_id_to_delete: uuid4, current_admin_user: DomainUser) -> None:
+        """
+        Executes the user deletion process.
+
+        Args:
+            user_id_to_delete: The ID of the user to be deleted.
+            current_admin_user: The authenticated admin user performing the action.
+
+        Raises:
+            ApplicationException:
+                - If the current user is not an admin (403 Forbidden).
+                - If the user to delete is not found (404 Not Found).
+                - If an admin tries to delete themselves (400 Bad Request).
+        """
+        if current_admin_user.role != UserRole.ADMIN:
+            raise ApplicationException("Forbidden: User does not have admin privileges.", status_code=403)
+
+        user_to_delete = await self.user_repo.get_by_id(user_id_to_delete)
+        if not user_to_delete:
+            raise ApplicationException(f"User with ID {user_id_to_delete} not found.", status_code=404)
+
+        if user_to_delete.user_id == current_admin_user.user_id:
+            raise ApplicationException("Admins cannot delete their own accounts.", status_code=400)
+
+        # The repository's delete_by_id method will handle the actual deletion.
+        # We expect it to return True if deletion was successful, False otherwise.
+        # If it returns False (e.g., user_id didn't exist, though we checked),
+        # it might indicate a race condition or an issue at the DB layer.
+        # For now, we assume a successful call to delete_by_id means it's done.
+        # If more specific feedback from delete_by_id is needed, the return can be checked.
+        await self.user_repo.delete_by_id(user_id_to_delete)
+        return None

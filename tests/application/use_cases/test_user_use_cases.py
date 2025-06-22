@@ -267,3 +267,95 @@ async def test_list_users_invalid_pagination_parameters(mock_user_repo: MagicMoc
 
     assert exc_info.value.status_code == 400
     mock_user_repo.list_users_paginated.assert_not_called()
+
+
+# === Tests for AdminDeleteUserUseCase ===
+from readmaster_ai.application.use_cases.user_use_cases import AdminDeleteUserUseCase
+
+@pytest.fixture
+def admin_user_domain(sample_user_domain: DomainUser) -> DomainUser:
+    """Fixture for an admin user."""
+    admin_user = DomainUser(**sample_user_domain.model_dump(exclude={"role", "user_id"}))
+    admin_user.user_id = uuid4() # Ensure different ID from sample_user_domain
+    admin_user.role = UserRole.ADMIN
+    admin_user.email = "admin@example.com"
+    return admin_user
+
+@pytest.fixture
+def regular_user_domain(sample_user_domain: DomainUser) -> DomainUser:
+    """Fixture for a non-admin user to be deleted."""
+    user_to_delete = DomainUser(**sample_user_domain.model_dump(exclude={"user_id"}))
+    user_to_delete.user_id = uuid4() # Ensure different ID
+    user_to_delete.email = "user.to.delete@example.com"
+    user_to_delete.role = UserRole.STUDENT # Explicitly student
+    return user_to_delete
+
+@pytest.mark.asyncio
+async def test_admin_delete_user_success(mock_user_repo: MagicMock, admin_user_domain: DomainUser, regular_user_domain: DomainUser):
+    # Arrange
+    mock_user_repo.get_by_id.return_value = regular_user_domain # User to delete exists
+    mock_user_repo.delete_by_id.return_value = True # Simulate successful deletion
+
+    use_case = AdminDeleteUserUseCase(user_repo=mock_user_repo)
+    user_id_to_delete = regular_user_domain.user_id
+
+    # Act
+    await use_case.execute(user_id_to_delete=user_id_to_delete, current_admin_user=admin_user_domain)
+
+    # Assert
+    mock_user_repo.get_by_id.assert_called_once_with(user_id_to_delete)
+    mock_user_repo.delete_by_id.assert_called_once_with(user_id_to_delete)
+
+@pytest.mark.asyncio
+async def test_admin_delete_user_not_found(mock_user_repo: MagicMock, admin_user_domain: DomainUser):
+    # Arrange
+    non_existent_user_id = uuid4()
+    mock_user_repo.get_by_id.return_value = None # Simulate user not found
+
+    use_case = AdminDeleteUserUseCase(user_repo=mock_user_repo)
+
+    # Act & Assert
+    with pytest.raises(ApplicationException) as exc_info:
+        await use_case.execute(user_id_to_delete=non_existent_user_id, current_admin_user=admin_user_domain)
+
+    assert exc_info.value.status_code == 404
+    assert f"User with ID {non_existent_user_id} not found" in exc_info.value.message
+    mock_user_repo.delete_by_id.assert_not_called()
+
+@pytest.mark.asyncio
+async def test_admin_delete_user_by_non_admin(mock_user_repo: MagicMock, regular_user_domain: DomainUser):
+    # Arrange
+    non_admin_actor = DomainUser(
+        user_id=uuid4(), email="nonadmin@example.com",
+        password_hash="hash", role=UserRole.TEACHER # Not an ADMIN
+    )
+    user_id_to_delete = regular_user_domain.user_id
+
+    use_case = AdminDeleteUserUseCase(user_repo=mock_user_repo)
+
+    # Act & Assert
+    with pytest.raises(ApplicationException) as exc_info:
+        await use_case.execute(user_id_to_delete=user_id_to_delete, current_admin_user=non_admin_actor)
+
+    assert exc_info.value.status_code == 403
+    assert "Forbidden: User does not have admin privileges" in exc_info.value.message
+    mock_user_repo.get_by_id.assert_not_called()
+    mock_user_repo.delete_by_id.assert_not_called()
+
+@pytest.mark.asyncio
+async def test_admin_delete_self_fails(mock_user_repo: MagicMock, admin_user_domain: DomainUser):
+    # Arrange
+    # Admin tries to delete themselves
+    user_id_to_delete = admin_user_domain.user_id
+    mock_user_repo.get_by_id.return_value = admin_user_domain # Admin user exists
+
+    use_case = AdminDeleteUserUseCase(user_repo=mock_user_repo)
+
+    # Act & Assert
+    with pytest.raises(ApplicationException) as exc_info:
+        await use_case.execute(user_id_to_delete=user_id_to_delete, current_admin_user=admin_user_domain)
+
+    assert exc_info.value.status_code == 400
+    assert "Admins cannot delete their own accounts" in exc_info.value.message
+    mock_user_repo.get_by_id.assert_called_once_with(user_id_to_delete) # get_by_id is called before the self-delete check
+    mock_user_repo.delete_by_id.assert_not_called()

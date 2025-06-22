@@ -51,6 +51,14 @@ class UserRepository(ABC):
         """Lists users with pagination, returning a tuple of users and total count."""
         pass
 
+    @abstractmethod
+    async def delete_by_id(self, user_id: UUID) -> bool:
+        """
+        Deletes a user by their ID.
+        Returns True if deletion was successful, False otherwise.
+        """
+        pass
+
     # Add other methods as they become necessary, e.g.,
     # @abstractmethod
     # async def delete(self, user_id: UUID) -> bool: pass
