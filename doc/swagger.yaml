@@ -498,8 +498,6 @@ paths:
       summary: Admin List Users
       description: Retrieves a paginated list of all users in the system. Requires admin privileges.
       operationId: admin_list_users_api_v1_admin_users_get
-      security:
-        - OAuth2PasswordBearer: []
       parameters:
         - name: page
           in: query
@@ -539,34 +537,12 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
       security:
         - OAuth2PasswordBearer: []
-      parameters:
-        - name: config_key
-          in: path
-          required: true
-          schema:
-            type: string
-            description: The key of the configuration to update or create
-            title: Config Key
-          description: The key of the configuration to update or create
       requestBody:
         required: true
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/SystemConfigUpdateDTO'
-      responses:
-        '200':
-          description: Successful Response
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SystemConfigResponseDTO'
-        '422':
-          description: Validation Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPValidationError'
   /api/v1/admin/users/{user_id}:
     delete:
       tags:
