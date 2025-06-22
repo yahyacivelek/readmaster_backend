@@ -28,8 +28,8 @@ class ClassEntity: # Renamed from Class
         self.created_by_teacher_id = created_by_teacher_id if created_by_teacher_id else uuid4() # Or raise error if None
         self.students: List[Student] = [] # Initialize as empty list
         self.teachers: List[Teacher] = [] # Initialize as empty list
-        self.created_at = created_at if created_at else datetime.utcnow()
-        self.updated_at = updated_at if updated_at else datetime.utcnow()
+        self.created_at = created_at.replace(tzinfo=None) if created_at else datetime.utcnow().replace(tzinfo=None)
+        self.updated_at = updated_at.replace(tzinfo=None) if updated_at else datetime.utcnow().replace(tzinfo=None)
 
 
     def add_student(self, student: Student):
