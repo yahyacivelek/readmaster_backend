@@ -24,16 +24,6 @@ dependencies = [
     "bcrypt (==4.0.1)",
 ]
 
-[project.optional-dependencies]
-dev = [
-    "pytest>=8.4.0,<9.0.0", # Adjusted to match poetry's typical pinning for dev
-    "pytest-asyncio>=1.0.0,<2.0.0",
-    "httpx>=0.28.1,<0.29.0",
-    "black>=25.1.0,<26.0.0",
-    "isort>=6.0.1,<7.0.0",
-    "flake8>=7.2.0,<8.0.0",
-]
-
 [tool.poetry] # Keep poetry specific configurations here
 packages = [
     { include = "readmaster_ai", from = "src" }
@@ -41,8 +31,12 @@ packages = [
 # No dependencies here anymore
 
 [tool.poetry.group.dev.dependencies]
+pytest = ">=8.4.0,<9.0.0"
 pytest-asyncio = "^1.0.0"
 httpx = "^0.28.1"
+black = ">=25.1.0,<26.0.0"
+isort = ">=6.0.1,<7.0.0"
+flake8 = ">=7.2.0,<8.0.0"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

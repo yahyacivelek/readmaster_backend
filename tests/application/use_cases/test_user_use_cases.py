@@ -6,7 +6,7 @@ from uuid import uuid4, UUID
 from datetime import datetime, timezone
 
 from readmaster_ai.application.use_cases.user_use_cases import (
-    CreateUserUseCase, GetUserProfileUseCase, UpdateUserProfileUseCase
+    CreateUserUseCase, GetUserProfileUseCase, UpdateUserProfileUseCase, ListUsersUseCase
 )
 from readmaster_ai.domain.entities.user import DomainUser
 from readmaster_ai.domain.value_objects.common_enums import UserRole # Corrected import
@@ -23,6 +23,7 @@ def mock_user_repo() -> MagicMock:
     mock.get_by_id = AsyncMock(return_value=None)
     mock.create = AsyncMock(side_effect=lambda user: user) # Default: returns the user passed to it
     mock.update = AsyncMock(side_effect=lambda user: user) # Default: returns the user passed to it
+    mock.list_users_paginated = AsyncMock(return_value=([], 0)) # Default for pagination
     return mock
 
 @pytest.fixture
@@ -213,3 +214,56 @@ async def test_update_user_profile_no_changes_updates_timestamp(mock_user_repo: 
     assert updated_user_arg_to_repo.updated_at > original_updated_at
 
     assert updated_user_result.updated_at > original_updated_at
+
+
+# === Tests for ListUsersUseCase ===
+@pytest.mark.asyncio
+async def test_list_users_success(mock_user_repo: MagicMock, sample_user_domain: DomainUser):
+    # Arrange
+    users_list = [sample_user_domain, DomainUser(user_id=uuid4(), email="user2@example.com", password_hash="hash2", role=UserRole.TEACHER)]
+    total_count = len(users_list)
+    mock_user_repo.list_users_paginated.return_value = (users_list, total_count)
+
+    use_case = ListUsersUseCase(user_repo=mock_user_repo)
+    page, size = 1, 10
+
+    # Act
+    result_users, result_total_count = await use_case.execute(page=page, size=size)
+
+    # Assert
+    mock_user_repo.list_users_paginated.assert_called_once_with(page=page, size=size)
+    assert result_users == users_list
+    assert result_total_count == total_count
+
+@pytest.mark.asyncio
+async def test_list_users_empty_result(mock_user_repo: MagicMock):
+    # Arrange
+    mock_user_repo.list_users_paginated.return_value = ([], 0) # Simulate no users found
+
+    use_case = ListUsersUseCase(user_repo=mock_user_repo)
+    page, size = 1, 10
+
+    # Act
+    result_users, result_total_count = await use_case.execute(page=page, size=size)
+
+    # Assert
+    mock_user_repo.list_users_paginated.assert_called_once_with(page=page, size=size)
+    assert result_users == []
+    assert result_total_count == 0
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("page, size", [
+    (0, 10), # Invalid page
+    (1, 0),  # Invalid size
+    (1, 101) # Invalid size (over max)
+])
+async def test_list_users_invalid_pagination_parameters(mock_user_repo: MagicMock, page: int, size: int):
+    # Arrange
+    use_case = ListUsersUseCase(user_repo=mock_user_repo)
+
+    # Act & Assert
+    with pytest.raises(ApplicationException) as exc_info:
+        await use_case.execute(page=page, size=size)
+
+    assert exc_info.value.status_code == 400
+    mock_user_repo.list_users_paginated.assert_not_called()

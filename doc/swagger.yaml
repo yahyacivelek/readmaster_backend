@@ -491,6 +491,52 @@ paths:
         - Admin - System Configuration
       summary: Admin Update System Configuration
       operationId: admin_update_system_configuration_api_v1_admin_system_configurations__config_key__put
+  /api/v1/admin/users:
+    get:
+      tags:
+        - Admin Management
+      summary: Admin List Users
+      description: Retrieves a paginated list of all users in the system. Requires admin privileges.
+      operationId: admin_list_users_api_v1_admin_users_get
+      security:
+        - OAuth2PasswordBearer: []
+      parameters:
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+            title: Page
+          description: Page number for pagination.
+        - name: size
+          in: query
+          required: false
+          schema:
+            type: integer
+            maximum: 100
+            minimum: 1
+            default: 20
+            title: Size
+          description: Number of items per page.
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedAdminUserResponseDTO'
+        '401':
+          description: Unauthorized. Invalid or missing authentication token.
+        '403':
+          description: Forbidden. Authenticated user is not an admin.
+        '422':
+          description: Validation Error. Invalid pagination parameters.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
       security:
         - OAuth2PasswordBearer: []
       parameters:
@@ -2434,6 +2480,71 @@ components:
         - feedback
         - system
       title: NotificationType
+
+    AdminUserResponseDTO:
+      type: object
+      properties:
+        user_id:
+          type: string
+          format: uuid
+          title: User Id
+        email:
+          type: string
+          format: email
+          title: Email
+        first_name:
+          type: string
+          nullable: true
+          title: First Name
+        last_name:
+          type: string
+          nullable: true
+          title: Last Name
+        role:
+          $ref: '#/components/schemas/UserRole'
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        updated_at:
+          type: string
+          format: date-time
+          title: Updated At
+      required:
+        - user_id
+        - email
+        - role
+        - created_at
+        - updated_at
+      title: AdminUserResponseDTO
+      description: Extended UserResponseDTO for admin view, including timestamps.
+
+    PaginatedAdminUserResponseDTO:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminUserResponseDTO'
+          title: Items
+        total:
+          type: integer
+          title: Total
+        page:
+          type: integer
+          minimum: 1
+          title: Page
+        size:
+          type: integer
+          minimum: 1
+          title: Size
+      required:
+        - items
+        - total
+        - page
+        - size
+      title: PaginatedAdminUserResponseDTO
+      description: Paginated response for listing users in the admin panel.
 
     PaginatedAssessmentListResponseDTO:
       type: object

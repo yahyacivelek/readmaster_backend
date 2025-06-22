@@ -46,6 +46,11 @@ class UserRepository(ABC):
         """Retrieves a list of student UUIDs linked to a specific parent ID."""
         pass
 
+    @abstractmethod
+    async def list_users_paginated(self, page: int, size: int) -> tuple[List[DomainUser], int]:
+        """Lists users with pagination, returning a tuple of users and total count."""
+        pass
+
     # Add other methods as they become necessary, e.g.,
     # @abstractmethod
     # async def delete(self, user_id: UUID) -> bool: pass

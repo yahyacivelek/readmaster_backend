@@ -212,3 +212,25 @@ class UserRepositoryImpl(UserRepository):
         result = await self.session.execute(stmt)
         student_ids = result.scalars().all()
         return list(student_ids) # Ensure it's a list of UUIDs
+
+    async def list_users_paginated(self, page: int, size: int) -> tuple[List[DomainUser], int]:
+        """Lists users with pagination."""
+        offset = (page - 1) * size
+
+        # Query for the total count of users
+        count_stmt = select(func.count()).select_from(UserModel)
+        total_count_result = await self.session.execute(count_stmt)
+        total_count = total_count_result.scalar_one()
+
+        # Query for the paginated list of users
+        users_stmt = (
+            select(UserModel)
+            .order_by(UserModel.created_at.desc()) # Example ordering
+            .offset(offset)
+            .limit(size)
+        )
+        users_result = await self.session.execute(users_stmt)
+        user_models = users_result.scalars().all()
+
+        domain_users = [_user_model_to_domain(user_model) for user_model in user_models if _user_model_to_domain(user_model) is not None]
+        return domain_users, total_count

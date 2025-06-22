@@ -3,8 +3,9 @@ Data Transfer Objects (DTOs) for User related operations,
 primarily for representing user information in other DTOs or API responses
 where a slimmed-down or specific user representation is needed.
 """
+from datetime import datetime
 from pydantic import BaseModel, EmailStr
-from typing import Optional
+from typing import Optional, List
 from uuid import UUID
 # Ensure UserRole is imported from the centralized location
 from readmaster_ai.domain.value_objects.common_enums import UserRole
@@ -25,6 +26,31 @@ class UserResponseDTO(BaseModel):
         from_attributes = True # For Pydantic v2 (replaces orm_mode)
         use_enum_values = True # Ensures enum values are used in serialization if needed by client
                                # FastAPI usually handles this correctly for JSON responses.
+
+
+class AdminUserResponseDTO(UserResponseDTO):
+    """
+    Extended UserResponseDTO for admin view, including timestamps.
+    """
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+        use_enum_values = True
+
+
+class PaginatedAdminUserResponseDTO(BaseModel):
+    """
+    Paginated response for listing users in the admin panel.
+    """
+    items: List[AdminUserResponseDTO]
+    total: int
+    page: int
+    size: int
+
+    class Config:
+        from_attributes = True
 
 
 class UserCreateDTO(BaseModel): # More generic DTO, can be used by use cases

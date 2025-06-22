@@ -41,6 +41,11 @@ from readmaster_ai.application.use_cases.quiz_question_use_cases import (
 from readmaster_ai.application.use_cases.system_config_use_cases import ( # New
     GetSystemConfigurationUseCase, UpdateSystemConfigurationUseCase, ListSystemConfigurationsUseCase
 )
+from readmaster_ai.application.use_cases.user_use_cases import ListUsersUseCase # New User Use Case
+from readmaster_ai.application.dto.user_dtos import AdminUserResponseDTO, PaginatedAdminUserResponseDTO # New User DTOs
+from readmaster_ai.domain.repositories.user_repository import UserRepository # New User Repo Interface
+from readmaster_ai.infrastructure.database.repositories.user_repository_impl import UserRepositoryImpl # New User Repo Impl
+
 
 # Shared (Exceptions)
 from readmaster_ai.shared.exceptions import NotFoundException, ApplicationException
@@ -61,6 +66,9 @@ def get_quiz_question_repo(session: AsyncSession = Depends(get_db)) -> QuizQuest
 
 def get_system_config_repo(session: AsyncSession = Depends(get_db)) -> SystemConfigurationRepository: # New
     return SystemConfigurationRepositoryImpl(session)
+
+def get_user_repo(session: AsyncSession = Depends(get_db)) -> UserRepository: # New
+    return UserRepositoryImpl(session)
 
 # --- Readings Endpoints ---
 @router.post("/readings", response_model=ReadingResponseDTO, status_code=status.HTTP_201_CREATED)
@@ -221,3 +229,36 @@ async def admin_update_system_configuration(
         # Log error e
         print(f"Unexpected error updating system config {config_key}: {e}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An error occurred while updating system configuration.")
+
+
+# --- Users Endpoints ---
+@router.get("/users", response_model=PaginatedAdminUserResponseDTO, tags=["Admin Management"])
+async def admin_list_users(
+    page: int = Query(1, ge=1, description="Page number for pagination."),
+    size: int = Query(20, ge=1, le=100, description="Number of users per page."),
+    user_repo: UserRepository = Depends(get_user_repo),
+    # current_admin: DomainUser = Depends(get_current_user) # Router-level dependency already enforces admin
+):
+    """
+    Lists all users with pagination. Only accessible by admin users.
+    """
+    use_case = ListUsersUseCase(user_repo)
+    try:
+        users, total_count = await use_case.execute(page=page, size=size)
+
+        # Convert domain users to AdminUserResponseDTO
+        user_dtos = [AdminUserResponseDTO.model_validate(user) for user in users]
+
+        return PaginatedAdminUserResponseDTO(
+            items=user_dtos,
+            total=total_count,
+            page=page,
+            size=size
+        )
+    except ApplicationException as e:
+        # Handle specific application exceptions (e.g., validation errors from use case)
+        raise HTTPException(status_code=e.status_code if hasattr(e, 'status_code') else status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except Exception as e:
+        # Log the exception for debugging
+        print(f"An unexpected error occurred while listing users: {e}") # Consider using proper logging
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An unexpected error occurred.")

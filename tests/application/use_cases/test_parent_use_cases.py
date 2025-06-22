@@ -30,7 +30,7 @@ from readmaster_ai.application.dto.user_dtos import UserResponseDTO, ParentChild
 from readmaster_ai.application.dto.progress_dtos import StudentProgressSummaryDTO
 from readmaster_ai.application.dto.assessment_dtos import AssessmentResultDetailDTO, ParentAssignReadingRequestDTO, AssessmentResponseDTO, AssignmentUpdateDTO
 from readmaster_ai.application.dto.assessment_list_dto import PaginatedAssessmentListResponseDTO, AssessmentListItemDTO
-from readmaster_ai.shared.exceptions import ForbiddenException, NotFoundException, InvalidInputError
+from readmaster_ai.shared.exceptions import ForbiddenException, NotFoundException, ApplicationException # Changed InvalidInputError to ApplicationException
 # from readmaster_ai.services.password_service import PasswordService # Addsed
 
 @pytest.fixture
@@ -358,8 +358,10 @@ async def test_create_child_account_email_exists(
     use_case = CreateChildAccountUseCase(user_repository=mock_user_repo_for_parent) # , password_service=mock_password_service)
 
     # Act & Assert
-    with pytest.raises(InvalidInputError):
+    with pytest.raises(ApplicationException) as exc_info:
         await use_case.execute(parent_id=sample_parent_user.user_id, child_data=child_dto)
+    assert exc_info.value.status_code == 409
+    assert sample_child_user.email in exc_info.value.message
 
 # === ParentAssignReadingUseCase Tests ===
 @pytest.mark.asyncio

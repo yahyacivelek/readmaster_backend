@@ -197,3 +197,30 @@ class CreateStudentByTeacherUseCase:
 
 # Future use cases:
 # class ChangePasswordUseCase: ...
+
+
+class ListUsersUseCase:
+    """
+    Use case for listing users with pagination.
+    """
+    def __init__(self, user_repo: UserRepository):
+        self.user_repo = user_repo
+
+    async def execute(self, page: int, size: int) -> tuple[list[DomainUser], int]:
+        """
+        Executes the user listing process.
+
+        Args:
+            page: Page number for pagination.
+            size: Number of items per page.
+
+        Returns:
+            A tuple containing a list of DomainUser entities and the total count of users.
+        """
+        if page < 1:
+            raise ApplicationException("Page number must be 1 or greater.", status_code=400)
+        if size < 1 or size > 100: # Max size limit example
+            raise ApplicationException("Page size must be between 1 and 100.", status_code=400)
+
+        users, total_count = await self.user_repo.list_users_paginated(page=page, size=size)
+        return users, total_count
