@@ -18,7 +18,7 @@ from readmaster_ai.domain.value_objects.common_enums import UserRole
 from readmaster_ai.presentation.dependencies.auth_deps import get_current_user, require_role
 from readmaster_ai.application.dto.user_dtos import UserResponseDTO, ParentChildCreateRequestDTO
 from readmaster_ai.application.dto.progress_dtos import StudentProgressSummaryDTO
-from readmaster_ai.application.dto.assessment_dtos import AssessmentResultDetailDTO
+from readmaster_ai.application.dto.assessment_dtos import AssessmentResultDetailDTO, ParentAssignReadingRequestDTO
 
 # Repositories (Abstract for DI to Use Cases and their dependencies)
 from readmaster_ai.domain.repositories.user_repository import UserRepository

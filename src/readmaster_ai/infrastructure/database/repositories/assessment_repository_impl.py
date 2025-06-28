@@ -54,7 +54,6 @@ def _assessment_model_to_domain(model: AssessmentModel) -> Optional[DomainAssess
         assessment_date=model.assessment_date,
         ai_raw_speech_to_text=model.ai_raw_speech_to_text,
         updated_at=model.updated_at,
-        assigned_by_parent_id=model.assigned_by_parent_id # Added
         # result and quiz_answers are relationships, typically loaded separately or via specific use case logic
     )
 
@@ -85,7 +84,7 @@ class AssessmentRepositoryImpl(AssessmentRepository):
             assessment_date=assessment_date, # Use timezone-aware datetime
             ai_raw_speech_to_text=assessment.ai_raw_speech_to_text,
             updated_at=updated_at, # Use timezone-aware datetime
-            assigned_by_parent_id=assessment.assigned_by_parent_id # Added
+
         )
         self.session.add(model)
         await self.session.flush()
