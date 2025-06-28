@@ -65,7 +65,7 @@ class StartAssessmentUseCase:
             raise NotFoundException(resource_name="Reading", resource_id=str(request_data.reading_id))
         new_assessment = DomainAssessment(
             assessment_id=uuid4(), student_id=student.user_id, reading_id=request_data.reading_id,
-            status=AssessmentStatusEnum.PENDING_AUDIO, assessment_date=datetime.now(timezone.utc),
+            status=AssessmentStatus.PENDING_AUDIO, assessment_date=datetime.now(timezone.utc),
             updated_at=datetime.now(timezone.utc)
         )
         return await self.assessment_repo.create(new_assessment)
@@ -78,7 +78,7 @@ class RequestAssessmentAudioUploadURLUseCase:
         assessment = await self.assessment_repo.get_by_id(assessment_id)
         if not assessment: raise NotFoundException(resource_name="Assessment", resource_id=str(assessment_id))
         if assessment.student_id != student.user_id: raise ApplicationException("User not authorized.", status_code=403)
-        if assessment.status != AssessmentStatusEnum.PENDING_AUDIO:
+        if assessment.status != AssessmentStatus.PENDING_AUDIO:
             raise ApplicationException(f"Status is '{assessment.status.value}', expected PENDING_AUDIO.", status_code=400)
         file_extension = "wav"
         if content_type == "audio/mpeg": file_extension = "mp3"
@@ -95,10 +95,10 @@ class ConfirmAudioUploadUseCase:
         assessment = await self.assessment_repo.get_by_id(assessment_id)
         if not assessment: raise NotFoundException(resource_name="Assessment", resource_id=str(assessment_id))
         if assessment.student_id != student.user_id: raise ApplicationException("User not authorized.", status_code=403)
-        if assessment.status != AssessmentStatusEnum.PENDING_AUDIO:
+        if assessment.status != AssessmentStatus.PENDING_AUDIO:
             raise ApplicationException(f"Status is '{assessment.status.value}', expected PENDING_AUDIO.", status_code=400)
         assessment.audio_file_url = request_data.blob_name
-        assessment.status = AssessmentStatusEnum.PROCESSING
+        assessment.status = AssessmentStatus.PROCESSING
         assessment.updated_at = datetime.now(timezone.utc)
         updated_assessment = await self.assessment_repo.update(assessment)
         if not updated_assessment: raise ApplicationException("Failed to update assessment status.", status_code=500)
@@ -121,7 +121,7 @@ class SubmitQuizAnswersUseCase:
         assessment = await self.assessment_repo.get_by_id(assessment_id)
         if not assessment: raise NotFoundException(resource_name="Assessment", resource_id=str(assessment_id))
         if assessment.student_id != student.user_id: raise ApplicationException("User not authorized.", status_code=403)
-        if assessment.status != AssessmentStatusEnum.COMPLETED:
+        if assessment.status != AssessmentStatus.COMPLETED:
              raise ApplicationException(f"Status is '{assessment.status.value}'. Quiz can only be submitted for COMPLETED assessments.", status_code=400)
         student_answers_to_create: List[DomainStudentQuizAnswer] = []
         correct_count = 0
@@ -163,7 +163,7 @@ class GetAssessmentResultDetailsUseCase:
         assessment = await self.assessment_repo.get_by_id(assessment_id)
         if not assessment: raise NotFoundException(resource_name="Assessment", resource_id=str(assessment_id))
         if assessment.student_id != student.user_id: raise ApplicationException("User not authorized.", status_code=403)
-        if assessment.status not in [AssessmentStatusEnum.COMPLETED, AssessmentStatusEnum.ERROR]:
+        if assessment.status not in [AssessmentStatus.COMPLETED, AssessmentStatus.ERROR]:
              raise ApplicationException(f"Results not ready. Status: {assessment.status.value}", status_code=400)
         assessment_result_domain = await self.assessment_result_repo.get_by_assessment_id(assessment_id)
         student_answers_domain = await self.student_answer_repo.list_by_assessment_id(assessment_id)
@@ -230,7 +230,7 @@ class AssignReadingUseCase:
                 skipped_students_info.append(student_id); continue
             new_assessment = DomainAssessment(
                 assessment_id=uuid4(), student_id=student_id, reading_id=request_data.reading_id,
-                assigned_by_teacher_id=teacher.user_id, status=AssessmentStatusEnum.PENDING_AUDIO,
+                assigned_by_teacher_id=teacher.user_id, status=AssessmentStatus.PENDING_AUDIO,
                 assessment_date=current_time, updated_at=current_time
             )
             try:

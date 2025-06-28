@@ -27,4 +27,5 @@ api_v1_router.include_router(teacher_api_router)
 api_v1_router.include_router(parent_api_router)
 api_v1_router.include_router(websocket_api_router)
 api_v1_router.include_router(notification_api_router) # Include the notification router
+api_v1_router.include_router(student_api_router) # Include the student router
 # Add other routers here as they are created

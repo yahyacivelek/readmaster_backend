@@ -6,9 +6,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 # Application Layer
 from readmaster_ai.application.use_cases.progress_use_cases import GetStudentProgressSummaryUseCase
+from readmaster_ai.application.dto.progress_dtos import StudentProgressSummaryDTO
 
 # Presentation Layer
-from readmaster_ai.presentation.schemas.progress_schemas import StudentProgressSummaryDTO
 
 # Infrastructure Layer (for DI)
 from readmaster_ai.infrastructure.database.config import get_db
@@ -18,6 +18,7 @@ from readmaster_ai.domain.repositories.assessment_result_repository import Asses
 from readmaster_ai.domain.repositories.reading_repository import ReadingRepository
 
 # Shared Layer
+from readmaster_ai.domain.value_objects.common_enums import UserRole
 from readmaster_ai.shared.exceptions import ApplicationException
 
 # For get_current_user dependency and DomainUser type hint
@@ -58,7 +59,7 @@ async def get_student_progress_summary(
     """
     Retrieves a comprehensive progress summary for the authenticated student.
     """
-    if current_user.role != "STUDENT":
+    if current_user.role != UserRole.STUDENT:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only students can access their progress summary"
