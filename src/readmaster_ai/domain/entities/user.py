@@ -30,11 +30,12 @@ class DomainUser:
     created_at: datetime
     updated_at: datetime
     preferred_language: str
+    is_active: bool # Added is_active field
 
     def __init__(self, user_id: Optional[UUID] = None, email: str = "", password_hash: str = "", role: Optional[UserRole] = None, # Role can be None, default set below
                  first_name: Optional[str] = None, last_name: Optional[str] = None,
                  created_at: Optional[datetime] = None, updated_at: Optional[datetime] = None,
-                 preferred_language: str = 'en'):
+                 preferred_language: str = 'en', is_active: bool = True): # Added is_active to constructor
         self.user_id = user_id if user_id else uuid4()
         self.email = email
         self.password_hash = password_hash # Handle securely

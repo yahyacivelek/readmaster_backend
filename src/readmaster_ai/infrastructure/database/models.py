@@ -122,16 +122,19 @@ class AssessmentModel(Base):
     student_id = Column(PG_UUID(as_uuid=True), ForeignKey('Users.user_id'), nullable=False, index=True)
     reading_id = Column(PG_UUID(as_uuid=True), ForeignKey('Readings.reading_id'), nullable=False)
     assigned_by_teacher_id = Column(PG_UUID(as_uuid=True), ForeignKey('Users.user_id'), nullable=True) # Nullable if student picks own
+    assigned_by_parent_id = Column(PG_UUID(as_uuid=True), ForeignKey('Users.user_id'), nullable=True) # Added assigned_by_parent_id
     audio_file_url = Column(String)
     audio_duration_seconds = Column(Integer)
     status = Column(SQLAlchemyEnum(*ASSESSMENT_STATUS_ENUM_VALUES, name='assessment_status_enum', create_type=False), nullable=False, default='pending_audio', index=True)
     assessment_date = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
+    due_date = Column(Date, nullable=True) # Added due_date
     ai_raw_speech_to_text = Column(Text)
     updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
     student = relationship("UserModel", foreign_keys=[student_id], back_populates="assessments_taken")
     reading = relationship("ReadingModel", back_populates="assessments")
     assigning_teacher = relationship("UserModel", foreign_keys=[assigned_by_teacher_id], back_populates="assessments_assigned")
+    assigning_parent = relationship("UserModel", foreign_keys=[assigned_by_parent_id]) # Added relationship for assigning_parent
 
     result = relationship("AssessmentResultModel", back_populates="assessment", uselist=False, cascade="all, delete-orphan") # One-to-one
     quiz_answers = relationship("StudentQuizAnswerModel", back_populates="assessment", cascade="all, delete-orphan", lazy="dynamic")

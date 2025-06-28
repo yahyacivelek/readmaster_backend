@@ -1654,6 +1654,62 @@ paths:
       security:
         - OAuth2PasswordBearer: []
 
+  /api/v1/student/assignments:
+    get:
+      tags:
+        - Student - Assignments
+      summary: List My Assignments
+      description: Retrieves a paginated list of assignments for the authenticated student.
+      operationId: list_my_assignments_api_v1_student_assignments_get
+      security:
+        - OAuth2PasswordBearer: []
+      parameters:
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+            title: Page
+          description: Page number for pagination.
+        - name: size
+          in: query
+          required: false
+          schema:
+            type: integer
+            maximum: 100
+            minimum: 1
+            default: 20
+            title: Size
+          description: Number of items per page.
+        - name: status
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - $ref: '#/components/schemas/AssessmentStatus'
+              - type: 'null'
+            title: Status
+          description: Filter assignments by status (e.g., pending_audio, completed).
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedStudentAssignmentResponseDTO'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden (e.g., user is not a student)
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+
   /api/v1/parent/children/{child_student_id}/assessments/{assessment_id}/results:
     get:
       tags:
@@ -2625,6 +2681,33 @@ components:
         - size
       title: PaginatedResponse[ReadingResponseDTO]
 
+    PaginatedStudentAssignmentResponseDTO:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/StudentAssignmentItemDTO'
+          type: array
+          title: Items
+        total:
+          type: integer
+          title: Total
+        page:
+          type: integer
+          minimum: 1
+          title: Page
+        size:
+          type: integer
+          minimum: 1
+          title: Size
+      type: object
+      required:
+        - items
+        - total
+        - page
+        - size
+      title: PaginatedStudentAssignmentResponseDTO
+      description: Paginated response for listing student assignments.
+
     ParentAssignReadingRequestDTO:
       type: object
       properties:
@@ -3068,6 +3151,62 @@ components:
         - reading_id
       title: StartAssessmentRequestDTO
       description: DTO for a student to request the start of a new assessment.
+
+    StudentAssignmentItemDTO:
+      properties:
+        assessment_id:
+          type: string
+          format: uuid
+          title: Assessment Id
+          description: The unique identifier for this specific assignment attempt/assessment.
+        reading_id:
+          type: string
+          format: uuid
+          title: Reading Id
+          description: The identifier of the reading material.
+        reading_title:
+          type: string
+          title: Reading Title
+          description: The title of the reading material.
+        status:
+          $ref: '#/components/schemas/AssessmentStatus'
+        assigned_date:
+          type: string
+          format: date-time # Assuming this is when the assessment record was created
+          title: Assigned Date
+          description: The date and time when the assignment was created/assigned.
+        due_date:
+          anyOf:
+            - type: string
+              format: date
+            - type: 'null'
+          title: Due Date
+          description: The due date for the assignment, if set.
+        assigned_by_teacher_id:
+          anyOf:
+            - type: string
+              format: uuid
+            - type: 'null'
+          title: Assigned By Teacher Id
+          description: ID of the teacher who assigned this, if applicable.
+        assigned_by_parent_id:
+          anyOf:
+            - type: string
+              format: uuid
+            - type: 'null'
+          title: Assigned By Parent Id
+          description: ID of the parent who assigned this, if applicable.
+        # We might also want a field like 'assigner_name' or 'assigner_type' (Teacher/Parent) for easier display
+      type: object
+      required:
+        - assessment_id
+        - reading_id
+        - reading_title
+        - status
+        - assigned_date
+      title: StudentAssignmentItemDTO
+      description: Represents a single assignment item from a student's perspective.
+
     StudentProgressSummaryDTO:
       properties:
         student_info:

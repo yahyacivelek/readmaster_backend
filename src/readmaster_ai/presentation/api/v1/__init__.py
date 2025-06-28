@@ -8,7 +8,7 @@ from .teacher_router import router as teacher_api_router # Keep one
 from .parent_router import router as parent_api_router
 from .websocket_router import router as websocket_api_router
 from .notification_router import router as notification_api_router # New import
-from .student_router import router as student_api_router # New import
+from .student import router as student_api_router # Corrected import path
 
 # This router can aggregate all v1 routers
 api_v1_router = APIRouter(prefix="/api/v1")

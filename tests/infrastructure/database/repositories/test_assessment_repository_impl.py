@@ -93,3 +93,161 @@ async def test_list_by_reading_id_pagination(async_db_session):
     pass
 
 # Add more tests for ordering, non-existent reading_id, user with no permissions, etc.
+
+# Tests for list_by_student_id_paginated
+# These will require proper setup of Domain Objects and then saving them via repository's create method,
+# or direct insertion of Model objects and then fetching and converting.
+# For repository tests, it's often better to use the repository's own methods for setup
+# to also implicitly test them, or use utility functions that create DB records.
+
+from datetime import date # Added date import
+from readmaster_ai.infrastructure.database.models import AssessmentModel, UserModel, ReadingModel
+from readmaster_ai.infrastructure.database.repositories.assessment_repository_impl import AssessmentRepositoryImpl
+from readmaster_ai.domain.value_objects.common_enums import AssessmentStatus as DomainAssessmentStatus # Use domain enum for params
+from readmaster_ai.domain.entities.assessment import Assessment as DomainAssessment # For creating domain objects
+
+# A helper function to create an assessment model directly for testing might be useful
+# if not using the repository's create method for test setup.
+# async def _create_db_assessment(session, student_id, reading_id, assessment_date, status, due_date=None, assigned_by_teacher_id=None, assigned_by_parent_id=None):
+#     assessment_model = AssessmentModel(
+#         student_id=student_id,
+#         reading_id=reading_id,
+#         assessment_date=assessment_date,
+#         status=status.value, # Store enum value
+#         due_date=due_date,
+#         assigned_by_teacher_id=assigned_by_teacher_id,
+#         assigned_by_parent_id=assigned_by_parent_id
+#         # assessment_id will be default
+#     )
+#     session.add(assessment_model)
+#     await session.commit() # Commit to make it available for select
+#     await session.refresh(assessment_model)
+#     return assessment_model
+
+@pytest.mark.asyncio
+async def test_list_by_student_id_paginated_success_no_filter(async_db_session_empty): # Use a clean session
+    # Setup: Create a student, a reading, and a couple of assessments for this student
+    repo = AssessmentRepositoryImpl(async_db_session_empty)
+
+    student_id = uuid4()
+    reading_id = uuid4()
+
+    # Create dummy user and reading for FK constraints if not using full ORM object creation
+    # For simplicity, assuming these IDs are valid or these entities exist.
+    # In a real test, you'd create UserModel, ReadingModel instances or use fixtures.
+
+    assessment1_domain = DomainAssessment(
+        student_id=student_id, reading_id=reading_id,
+        assessment_date=datetime(2023, 1, 1, 10, 0, 0),
+        status=DomainAssessmentStatus.COMPLETED,
+        due_date=date(2023,1,10)
+    )
+    assessment2_domain = DomainAssessment(
+        student_id=student_id, reading_id=reading_id,
+        assessment_date=datetime(2023, 1, 2, 10, 0, 0),
+        status=DomainAssessmentStatus.PENDING_AUDIO,
+        due_date=date(2023,1,12)
+    )
+
+    # Use repository's create method to ensure data is in DB correctly through the repo's logic
+    # This requires the create method to be robust.
+    created_assessment1 = await repo.create(assessment1_domain)
+    created_assessment2 = await repo.create(assessment2_domain)
+    await async_db_session_empty.commit() # Commit changes made by repo.create
+
+    assessments, total_count = await repo.list_by_student_id_paginated(student_id, page=1, size=5)
+
+    assert total_count == 2
+    assert len(assessments) == 2
+    # Assessments should be ordered by assessment_date desc
+    assert assessments[0].assessment_id == created_assessment2.assessment_id
+    assert assessments[1].assessment_id == created_assessment1.assessment_id
+
+@pytest.mark.asyncio
+async def test_list_by_student_id_paginated_with_status_filter(async_db_session_empty):
+    repo = AssessmentRepositoryImpl(async_db_session_empty)
+    student_id = uuid4()
+    reading_id = uuid4()
+
+    assessment1 = await repo.create(DomainAssessment(
+        student_id=student_id, reading_id=reading_id,
+        assessment_date=datetime(2023, 1, 1), status=DomainAssessmentStatus.COMPLETED
+    ))
+    await repo.create(DomainAssessment( # This one should not be returned by filter
+        student_id=student_id, reading_id=reading_id,
+        assessment_date=datetime(2023, 1, 2), status=DomainAssessmentStatus.PENDING_AUDIO
+    ))
+    assessment3 = await repo.create(DomainAssessment(
+        student_id=student_id, reading_id=reading_id,
+        assessment_date=datetime(2023, 1, 3), status=DomainAssessmentStatus.COMPLETED
+    ))
+    await async_db_session_empty.commit()
+
+    assessments, total_count = await repo.list_by_student_id_paginated(
+        student_id, page=1, size=5, status=DomainAssessmentStatus.COMPLETED
+    )
+
+    assert total_count == 2
+    assert len(assessments) == 2
+    assessment_ids_returned = {a.assessment_id for a in assessments}
+    assert assessment1.assessment_id in assessment_ids_returned
+    assert assessment3.assessment_id in assessment_ids_returned
+    # Check order (desc by date)
+    assert assessments[0].assessment_id == assessment3.assessment_id
+    assert assessments[1].assessment_id == assessment1.assessment_id
+
+
+@pytest.mark.asyncio
+async def test_list_by_student_id_paginated_pagination_logic(async_db_session_empty):
+    repo = AssessmentRepositoryImpl(async_db_session_empty)
+    student_id = uuid4()
+    reading_id = uuid4()
+
+    # Create 3 assessments
+    a1 = await repo.create(DomainAssessment(student_id=student_id, reading_id=reading_id, assessment_date=datetime(2023, 1, 1), status=DomainAssessmentStatus.COMPLETED))
+    a2 = await repo.create(DomainAssessment(student_id=student_id, reading_id=reading_id, assessment_date=datetime(2023, 1, 2), status=DomainAssessmentStatus.COMPLETED))
+    a3 = await repo.create(DomainAssessment(student_id=student_id, reading_id=reading_id, assessment_date=datetime(2023, 1, 3), status=DomainAssessmentStatus.COMPLETED))
+    await async_db_session_empty.commit()
+
+    # Page 1, Size 2
+    assessments_p1, total_p1 = await repo.list_by_student_id_paginated(student_id, page=1, size=2)
+    assert total_p1 == 3
+    assert len(assessments_p1) == 2
+    assert assessments_p1[0].assessment_id == a3.assessment_id # newest
+    assert assessments_p1[1].assessment_id == a2.assessment_id
+
+    # Page 2, Size 2
+    assessments_p2, total_p2 = await repo.list_by_student_id_paginated(student_id, page=2, size=2)
+    assert total_p2 == 3
+    assert len(assessments_p2) == 1
+    assert assessments_p2[0].assessment_id == a1.assessment_id # oldest
+
+@pytest.mark.asyncio
+async def test_list_by_student_id_paginated_no_assessments_for_student(async_db_session_empty):
+    repo = AssessmentRepositoryImpl(async_db_session_empty)
+    student_id = uuid4() # Student with no assessments
+    other_student_id = uuid4()
+    reading_id = uuid4()
+
+    # Create assessment for another student
+    await repo.create(DomainAssessment(student_id=other_student_id, reading_id=reading_id, assessment_date=datetime(2023,1,1), status=DomainAssessmentStatus.COMPLETED))
+    await async_db_session_empty.commit()
+
+    assessments, total_count = await repo.list_by_student_id_paginated(student_id, page=1, size=5)
+    assert total_count == 0
+    assert len(assessments) == 0
+
+@pytest.mark.asyncio
+async def test_list_by_student_id_paginated_status_filter_no_match(async_db_session_empty):
+    repo = AssessmentRepositoryImpl(async_db_session_empty)
+    student_id = uuid4()
+    reading_id = uuid4()
+
+    await repo.create(DomainAssessment(student_id=student_id, reading_id=reading_id, assessment_date=datetime(2023,1,1), status=DomainAssessmentStatus.PENDING_AUDIO))
+    await async_db_session_empty.commit()
+
+    assessments, total_count = await repo.list_by_student_id_paginated(
+        student_id, page=1, size=5, status=DomainAssessmentStatus.COMPLETED # Filter for a status that doesn't exist
+    )
+    assert total_count == 0
+    assert len(assessments) == 0

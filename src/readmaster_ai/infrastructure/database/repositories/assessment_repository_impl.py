@@ -48,10 +48,12 @@ def _assessment_model_to_domain(model: AssessmentModel) -> Optional[DomainAssess
         student_id=model.student_id,
         reading_id=model.reading_id,
         assigned_by_teacher_id=model.assigned_by_teacher_id,
+        assigned_by_parent_id=model.assigned_by_parent_id, # Added assigned_by_parent_id
         audio_file_url=model.audio_file_url,
         audio_duration=model.audio_duration_seconds, # Mapping DB field name to domain entity field name
         status=status_enum_member if status_enum_member else AssessmentStatus.ERROR, # Default to ERROR if conversion failed
         assessment_date=model.assessment_date,
+        due_date=model.due_date, # Added due_date
         ai_raw_speech_to_text=model.ai_raw_speech_to_text,
         updated_at=model.updated_at,
         # result and quiz_answers are relationships, typically loaded separately or via specific use case logic
@@ -78,10 +80,12 @@ class AssessmentRepositoryImpl(AssessmentRepository):
             student_id=assessment.student_id,
             reading_id=assessment.reading_id,
             assigned_by_teacher_id=assessment.assigned_by_teacher_id,
+            assigned_by_parent_id=assessment.assigned_by_parent_id, # Added assigned_by_parent_id
             audio_file_url=assessment.audio_file_url,
             audio_duration_seconds=assessment.audio_duration, # Map domain field to DB field
             status=assessment.status.value, # Convert Enum to its string value for DB
             assessment_date=assessment_date, # Use timezone-aware datetime
+            due_date=assessment.due_date, # Added due_date
             ai_raw_speech_to_text=assessment.ai_raw_speech_to_text,
             updated_at=updated_at, # Use timezone-aware datetime
 
@@ -112,8 +116,10 @@ class AssessmentRepositoryImpl(AssessmentRepository):
             "audio_duration_seconds": assessment.audio_duration,
             "status": assessment.status.value, # Enum to string value
             "ai_raw_speech_to_text": assessment.ai_raw_speech_to_text,
+            "due_date": assessment.due_date, # Added due_date
             "updated_at": assessment.updated_at, # Domain entity should have updated this
         }
+        # assigned_by_teacher_id and assigned_by_parent_id are generally not updated post-creation.
         # Filter out None values for fields that should not be set to NULL if not provided,
         # unless None is a valid value to clear the field.
         # For example, audio_file_url and ai_raw_speech_to_text can be explicitly set to None.
@@ -255,5 +261,44 @@ class AssessmentRepositoryImpl(AssessmentRepository):
         result = await self.session.execute(stmt)
         # No explicit flush or commit here; handled by UoW or service layer
         return result.rowcount > 0
+
+    async def list_by_student_id_paginated(
+        self,
+        student_id: UUID,
+        page: int,
+        size: int,
+        status: Optional[AssessmentStatus] = None,
+    ) -> Tuple[List[DomainAssessment], int]:
+        """
+        Retrieves a paginated list of assessments for a specific student,
+        optionally filtered by status.
+        """
+        query = select(AssessmentModel).where(AssessmentModel.student_id == student_id)
+
+        if status:
+            query = query.where(AssessmentModel.status == status.value)
+
+        # Count query
+        count_query = select(func.count()).select_from(query.order_by(None).subquery())
+        total_count_result = await self.session.execute(count_query)
+        total_count = total_count_result.scalar_one()
+
+        if total_count == 0:
+            return [], 0
+
+        # Data query with pagination and ordering
+        # Consistently order by assessment_date descending for assignments
+        query = query.order_by(desc(AssessmentModel.assessment_date)).offset((page - 1) * size).limit(size)
+
+        result = await self.session.execute(query)
+        assessment_models = result.scalars().all()
+
+        domain_assessments = []
+        for model in assessment_models:
+            domain_assessment = _assessment_model_to_domain(model)
+            if domain_assessment:
+                domain_assessments.append(domain_assessment)
+
+        return domain_assessments, total_count
 
 from sqlalchemy import delete as sqlalchemy_delete # Ensure this is imported at the top if not already

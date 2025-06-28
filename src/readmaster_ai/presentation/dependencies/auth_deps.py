@@ -126,3 +126,19 @@ def require_role(required_role: UserRole):
             )
         return current_user
     return role_checker
+
+async def get_current_active_student(current_user: DomainUser = Depends(get_current_user)) -> DomainUser:
+    """
+    Dependency to get the current authenticated user and ensure they are a student.
+    """
+    if current_user.role != UserRole.STUDENT:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Operation not permitted. User must be a student."
+        )
+    if not current_user.is_active: # Assuming DomainUser has an 'is_active' field
+         raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User account is inactive."
+        )
+    return current_user

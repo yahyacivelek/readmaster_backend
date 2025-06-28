@@ -126,5 +126,16 @@ def get_list_assessments_by_reading_id_use_case(
         user_repo=user_repo
     )
 
+# --- Student Use Case Dependency Providers ---
+from readmaster_ai.application.use_cases.list_student_assignments_use_case import ListStudentAssignmentsUseCase
+
+def get_list_student_assignments_use_case( # Changed function name to match convention
+    assessment_repo: AssessmentRepository = Depends(get_assessment_repository),
+    reading_repo: ReadingRepository = Depends(get_reading_repository)
+) -> ListStudentAssignmentsUseCase:
+    return ListStudentAssignmentsUseCase(
+        assessment_repository=assessment_repo, # Corrected parameter name
+        reading_repository=reading_repo # Corrected parameter name
+    )
 
 # Add other use case providers here following the same pattern.

@@ -26,6 +26,7 @@ class Assessment:
     # result: Optional[AssessmentResult] # One-to-one, managed by repository
     # quiz_answers: List[StudentQuizAnswer] # One-to-many, managed by repository
     updated_at: datetime
+    due_date: Optional[date] # Changed to date type
 
     def __init__(self, student_id: UUID, reading_id: UUID, # student_id and reading_id are mandatory
                  assessment_id: Optional[UUID] = None,
@@ -35,7 +36,8 @@ class Assessment:
                  status: AssessmentStatus = AssessmentStatus.PENDING_AUDIO,
                  assessment_date: Optional[datetime] = None,
                  ai_raw_speech_to_text: Optional[str] = None,
-                 updated_at: Optional[datetime] = None):
+                 updated_at: Optional[datetime] = None,
+                 due_date: Optional[date] = None): # Changed due_date to date type in constructor
         self.assessment_id = assessment_id if assessment_id else uuid4()
         self.student_id = student_id
         self.reading_id = reading_id
@@ -49,6 +51,7 @@ class Assessment:
         now = datetime.now(timezone.utc)
         self.assessment_date = assessment_date.replace(tzinfo=timezone.utc) if assessment_date and assessment_date.tzinfo is None else (assessment_date or now)
         self.ai_raw_speech_to_text = ai_raw_speech_to_text
+        self.due_date = due_date # Store due_date as date
         self.result: Optional[AssessmentResult] = None # Initialize as None
         self.quiz_answers: List[StudentQuizAnswer] = [] # Initialize as empty list
         self.updated_at = updated_at.replace(tzinfo=timezone.utc) if updated_at and updated_at.tzinfo is None else (updated_at or now)

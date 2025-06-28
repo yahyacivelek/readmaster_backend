@@ -5,7 +5,7 @@ from abc import ABC, abstractmethod
 from typing import Optional, List, Tuple
 from uuid import UUID
 from readmaster_ai.domain.entities.assessment import Assessment
-from readmaster_ai.domain.value_objects.common_enums import UserRole
+from readmaster_ai.domain.value_objects.common_enums import UserRole, AssessmentStatus # Added AssessmentStatus
 
 class AssessmentRepository(ABC):
     """
@@ -52,5 +52,21 @@ class AssessmentRepository(ABC):
         Retrieves assessments associated with a specific reading_id,
         filtered by the user's role and ownership, with pagination.
         Returns a tuple containing a list of Assessment entities and the total count.
+        """
+        pass
+
+    @abstractmethod
+    async def list_by_student_id_paginated(
+        self,
+        student_id: UUID,
+        page: int,
+        size: int,
+        status: Optional['AssessmentStatus'] = None, # Corrected type to AssessmentStatus
+        # Potentially add date range filters, sorting options, etc.
+    ) -> Tuple[List[Assessment], int]:
+        """
+        Retrieves a paginated list of assessments for a specific student,
+        optionally filtered by status.
+        Returns a tuple containing a list of Assessment entities and the total count of matching assessments.
         """
         pass
